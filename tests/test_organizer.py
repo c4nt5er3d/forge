@@ -93,7 +93,7 @@ class TestFileOrganizer(unittest.TestCase):
         
         organize(self.test_dir, dest_dir, dry_run=False, recursive=False, exclude=[], categories=self.categories, date_sort=False, copy_mode=True)
         
-        self.assertTrue(src_file.exists())
+        self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
         self.assertTrue((dest_dir / "Docs" / "to_copy.txt").exists())
 
     def test_undo(self):
@@ -109,7 +109,7 @@ class TestFileOrganizer(unittest.TestCase):
         
         undo_last()
         
-        self.assertTrue(src_file.exists())
+        self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
         self.assertFalse(moved_file.exists())
         
     def test_edge_case_no_permissions(self):
@@ -123,7 +123,7 @@ class TestFileOrganizer(unittest.TestCase):
         
         try:
             organize(self.test_dir, dest_dir, dry_run=False, recursive=False, exclude=[], categories=self.categories, date_sort=False, copy_mode=False)
-            self.assertTrue(src_file.exists())
+            self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
         finally:
             os.chmod(dest_dir, 0o700)
 
