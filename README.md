@@ -14,10 +14,10 @@ F.O.R.G.E. is a local-first automation tool designed to solve the chaos of unorg
 - **Transactional Undo**: Granular history tracking allows you to revert any batch operation with a single command.
 - **First-Class Commands**: New native `copy`, `organize`, and `rename` commands for intuitive workflow control.
 
-## Installation
-```bash
-# Clone the repo
-git clone https://github.com/jay/forge.git
+## Modularity & Resource Usage
+F.O.R.G.E. is designed to be highly modular. While it supports advanced AI features like Local LLM analysis and semantic search, **these are entirely optional**. 
+
+The core organization engine functions perfectly with zero dependencies beyond standard Python, making it ideal for low-resource environments. You can install the base tool with `pip install typer rich watchdog` and add AI capabilities only if and when you need them.
 
 # Install core dependencies
 pip install typer rich watchdog scikit-learn joblib
@@ -69,3 +69,4 @@ I built F.O.R.G.E. because my local filesystem had become a "black hole" where d
 ## Author
 **Jay**
 [GitHub Profile](https://github.com/c4nt5er3d)
+ 
