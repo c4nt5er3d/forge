@@ -1,0 +1,7 @@
+{
+    "default_target": "test_env_dir",
+    "default_destination": "test_env_dest",
+    "copy_mode": true,
+    "date_sort": false,
+    "exclude": ["log"]
+}

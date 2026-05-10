@@ -1,0 +1,15 @@
+13:48:29  INFO  Log file: /Users/jay/Documents/file_organizer/logs/organizer_2026-05-10_13-48-29.log
+13:48:29  INFO  Target:      /Users/jay/Documents/file_organizer
+13:48:29  INFO  Destination: /Users/jay/Documents/file_organizer
+13:48:29  INFO  Dry run:     True
+13:48:29  INFO  Recursive:   False
+13:48:29  INFO  Excluded:    none
+13:48:29  INFO  Date Sort:   False
+13:48:29  INFO  Copy Mode:   False
+13:48:29  INFO  Environment: default
+13:48:29  INFO  
+13:48:29  INFO  [DRY RUN] README.md → Misc/
+13:48:29  INFO  [DRY RUN] ROADMAP.md → Misc/
+13:48:29  INFO  
+13:48:29  INFO  ─── Summary ───────────────────────────
+13:48:29  INFO  Dry run complete. No files were changed.

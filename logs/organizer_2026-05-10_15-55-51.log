@@ -1,0 +1,46 @@
+15:55:51  INFO  Log file initialized at /Users/jay/Documents/file_organizer/logs/organizer_2026-05-10_15-55-51.log
+15:55:52  INFO  Moved:     client_proposal_draft.docx -> Documents/
+15:55:52  INFO  Moved:     weekly_standup_notes_engineering.txt -> Documents/
+15:55:52  INFO  Moved:     software_requirements_specification.docx -> Documents/
+15:55:52  INFO  Moved:     q1_financial_report.docx -> Documents/
+15:55:52  INFO  Moved:     performance_review_2023.docx -> Documents/
+15:55:52  INFO  Moved:     employee_performance_review_template.docx -> Documents/
+15:55:52  INFO  Moved:     business_plan_v3.docx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/internship_certificate.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     internship_certificate.pdf -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/nda_confidentiality_agreement_signed.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     nda_confidentiality_agreement_signed.pdf -> Documents/
+15:55:52  INFO  Moved:     team_roster_2024.xlsx -> Documents/
+15:55:52  INFO  Moved:     budget_allocation_department_q2.xlsx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/resume_software_engineer_2024.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     resume_software_engineer_2024.pdf -> Documents/
+15:55:52  INFO  Moved:     incident_report_server_downtime.docx -> Documents/
+15:55:52  INFO  Moved:     cover_letter_google.docx -> Documents/
+15:55:52  INFO  Moved:     project_timeline_gantt_chart.xlsx -> Documents/
+15:55:52  INFO  Moved:     meeting_notes_april.txt -> Documents/
+15:55:52  INFO  Moved:     api_documentation_draft_v1.docx -> Documents/
+15:55:52  INFO  Moved:     sprint_planning_meeting_notes_week12.txt -> Documents/
+15:55:52  INFO  Moved:     portfolio_links.txt -> Documents/
+15:55:52  INFO  Moved:     business_proposal_startup_pitch.pptx -> Documents/
+15:55:52  INFO  Moved:     product_roadmap_features_2024.pptx -> Documents/
+15:55:52  INFO  Moved:     project_budget_2024.xlsx -> Documents/
+15:55:52  INFO  Moved:     client_proposal_software_project_v2.docx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/linkedin_recommendation_letter.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     linkedin_recommendation_letter.pdf -> Documents/
+15:55:52  INFO  Moved:     team_contact_directory_2024.xlsx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/internship_completion_certificate.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     internship_completion_certificate.pdf -> Documents/
+15:55:52  INFO  Moved:     sprint_retrospective_notes.txt -> Documents/
+15:55:52  INFO  Moved:     job_application_cover_letter_google.docx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/freelance_contract_web_project.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     freelance_contract_web_project.pdf -> Documents/
+15:55:52  INFO  Moved:     quarterly_financial_report_q1_2024.xlsx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/nda_agreement_signed.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     nda_agreement_signed.pdf -> Documents/
+15:55:52  INFO  Moved:     onboarding_checklist_new_employee.docx -> Documents/
+15:55:52  INFO  Moved:     final_presentation_v2.pptx -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/resume_jay_2024.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     resume_jay_2024.pdf -> Documents/
+15:55:52  ERROR  Error extracting text from /Users/jay/Documents/Training_Data/Work/job_offer_letter.pdf: Cannot read an empty file
+15:55:52  INFO  Moved:     job_offer_letter.pdf -> Documents/
+15:55:52  INFO  Transaction log saved: history_2026-05-10_15-55-52.json
