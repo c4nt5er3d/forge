@@ -146,14 +146,9 @@ file_organizer/
 ##  Phase 6: Search & Knowledge
 
 ### 6.1 Semantic Search
-- [ ] File content indexing
-- [ ] Natural language queries
-- [ ] Contextual results
-
-### 6.2 Knowledge Base
-- [ ] Vector embeddings
-- [ ] Similarity detection
-- [ ] Duplicate identification
+- [x] File content indexing
+- [x] Natural language queries
+- [x] Contextual results
 
 ---
 

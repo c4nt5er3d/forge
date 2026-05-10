@@ -126,5 +126,63 @@ def undo_command() -> None:
     setup_logging()
     undo_last()
 
+@app.command(name="index")
+def index_command(
+    target: str = typer.Option(..., "--target", "-t", help="Folder to index for semantic search")
+) -> None:
+    """
+    [bold cyan]Index files[/bold cyan] so you can search their contents using natural language.
+    """
+    setup_logging()
+    target_path = Path(target).resolve()
+    console.print(f"[bold green]Building semantic search index for:[/bold green] {target_path}")
+    
+    try:
+        from src.search import SemanticSearch
+        searcher = SemanticSearch()
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console
+        ) as progress:
+            searcher.build_index(target_path, progress)
+        console.print("[bold green]Indexing complete! You can now use 'organizer search'.[/bold green]")
+    except Exception as e:
+        console.print(f"[red]Failed to build index: {e}[/red]")
+
+@app.command(name="search")
+def search_command(
+    query: str = typer.Argument(..., help="Natural language search query"),
+    limit: int = typer.Option(3, "--limit", "-l", help="Number of results to return")
+) -> None:
+    """
+    [bold magenta]Search[/bold magenta] for files using natural language (e.g. 'tax forms from last year').
+    """
+    setup_logging()
+    console.print(f"[cyan]Searching for:[/cyan] '{query}'...")
+    
+    try:
+        from src.search import SemanticSearch
+        searcher = SemanticSearch()
+        results = searcher.search(query, limit)
+        
+        if not results:
+            console.print("[yellow]No matches found or index is empty. Run 'organizer index' first![/yellow]")
+            return
+            
+        console.print(f"\n[bold green]Top {len(results)} matches:[/bold green]\n")
+        for metadata, distance in results:
+            # lower L2 distance is better
+            match_strength = max(0, 100 - (distance * 50)) 
+            console.print(f"📄 [bold]{metadata['name']}[/bold] (Score: {match_strength:.1f})")
+            console.print(f"   [dim]Path: {metadata['path']}[/dim]")
+            console.print(f"   [italic]\"{metadata['snippet']}\"[/italic]\n")
+            
+    except Exception as e:
+        console.print(f"[red]Search failed: {e}[/red]")
+
 if __name__ == "__main__":
     app()
