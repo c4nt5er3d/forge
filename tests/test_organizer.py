@@ -113,19 +113,18 @@ class TestFileOrganizer(unittest.TestCase):
         self.assertFalse(moved_file.exists())
         
     def test_edge_case_no_permissions(self):
+        from unittest.mock import patch
         src_file = self.test_dir / "no_perm.txt"
         src_file.touch()
         dest_dir = self.test_dir / "dest_no_perm"
         dest_dir.mkdir()
         
-        # This will simulate a permission error during moving by making destination read-only
-        os.chmod(dest_dir, 0o400)
-        
-        try:
+        # Simulate a PermissionError when shutil.move is called during organization
+        with patch('shutil.move', side_effect=PermissionError):
             organize(self.test_dir, dest_dir, dry_run=False, recursive=False, exclude=[], categories=self.categories, date_sort=False, copy_mode=False)
-            self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
-        finally:
-            os.chmod(dest_dir, 0o700)
+            
+        # Verify the file still exists in the source directory after the failed move
+        self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
 
 if __name__ == "__main__":
     unittest.main()
