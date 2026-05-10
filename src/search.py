@@ -3,12 +3,21 @@ import faiss
 import numpy as np
 import pickle
 import logging
+import re
 from pathlib import Path
 from typing import List, Dict, Tuple
 from rich.progress import Progress
 
 from src.llm import extract_text
 from src.utils import collect_files
+
+
+def clean_text_for_search(text: str) -> str:
+    # Removes underscores, dashes, and extra whitespace that create noise for the ML model.
+    text = re.sub(r'[_]{3,}', ' ', text)
+    text = re.sub(r'[-]{3,}', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
 
 class SemanticSearch:
     def __init__(self, index_dir: str = "models/search_index"):
@@ -68,15 +77,18 @@ class SemanticSearch:
         for file in files:
             progress.advance(task)
             
-            # Skip hidden files
-            if file.name.startswith("."):
+            # Explicitly ignore git internals and hidden files
+            if ".git" in file.parts or file.name.startswith("."):
                 continue
                 
             # We reuse the LLM extraction pipeline to ensure search and 
             # categorization see the exact same content representation.
-            text = extract_text(file)
-            if not text:
+            raw_text = extract_text(file)
+            if not raw_text:
                 continue
+
+            # Clean text to remove OCR/Formatting artifacts before embedding
+            text = clean_text_for_search(raw_text)
                 
             # Embeddings turn human language into a vector space where 
             # 'meaning' is represented by spatial proximity.
@@ -88,7 +100,7 @@ class SemanticSearch:
             new_metadata[current_id] = {
                 "path": str(file.resolve()),
                 "name": file.name,
-                "snippet": text[:200].replace("\n", " ") + "..."
+                "snippet": text[:500].replace("\n", " ") + "..."
             }
             current_id += 1
             

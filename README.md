@@ -8,7 +8,8 @@ F.O.R.G.E. is a local-first automation tool designed to solve the chaos of unorg
 - **Smart Organize**: Sorts files into logical categories using a hybrid approach of deterministic extension rules and ML classification.
 - **Real-Time Watchdog**: Monitors directories (like Downloads) and instantly organizes incoming files with debounce protection for stable I/O.
 - **AI-Driven Renaming**: Uses local LLMs to generate descriptive, professional filenames based on actual file content or OCR data.
-- **Semantic Search**: Natural language search (e.g., "tax forms from last year") using vector embeddings and L2 distance matching.
+- **Semantic Search**: Natural language search (e.g., "tax forms from last year") using vector embeddings and L2 distance matching. Now with 500-character snippet previews for better context.
+- **Git-Aware Indexing**: Automatically ignores `.git` directories to prevent binary noise and ensure search results remain relevant to your source files.
 - **OCR Integration**: Automatically extracts text from images, receipts, and screenshots to inform categorization and search.
 - **Transactional Undo**: Granular history tracking allows you to revert any batch operation with a single command.
 - **First-Class Commands**: New native `copy`, `organize`, and `rename` commands for intuitive workflow control.

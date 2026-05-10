@@ -30,6 +30,7 @@ Transform a simple file automation utility into an intelligent AI-powered deskto
 - [x] Local LLM support
 - [x] Semantic Search indexing and querying
 - [x] OCR extraction
+- [x] Search performance and snippet refinement
 
 ###  Current Structure
 ```text
