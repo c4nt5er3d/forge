@@ -29,26 +29,16 @@ def organize(
     rename_only: bool = False,
     use_ollama: bool = False
 ) -> None:
-    """
-    Main orchestration function to organize files based on extensions.
-    
-    Args:
-        target: The directory containing files to organize.
-        destination: The directory where organized folders will be created.
-        dry_run: If True, simulates the process without moving/copying files.
-        recursive: If True, searches all subdirectories of the target.
-        exclude: A list of file extensions to ignore.
-        categories: A dictionary mapping category names to lists of extensions.
-        date_sort: If True, creates year/month subfolders.
-        copy_mode: If True, copies files instead of moving them.
-    """
+    # Orchestrates the core file movement/copying pipeline.
+    # It balances AI-driven analysis with deterministic extension-based rules.
     excluded: Set[str] = {f".{e.lstrip('.').lower()}" for e in exclude}
 
-    with console.status("[bold green]Scanning directory for files...[/bold green]"):
+    # Status indicator ensures the user knows the app is active during slow I/O scans.
+    with console.status("  [#e8550a]›[/#e8550a] [#5bc8f5]Scanning directory for files...[/#5bc8f5]"):
         files: List[Path] = collect_files(target, recursive)
 
     if not files:
-        console.print("[yellow]No files found to organize.[/yellow]")
+        console.print("  [#e8550a]›[/#e8550a] [yellow]No files found to organize.[/yellow]")
         return
 
     moved: List[str] = []
@@ -65,6 +55,7 @@ def organize(
     else:
         action_name = "Copying" if copy_mode else "Moving"
 
+    # AI models are instantiated only when needed to save memory and startup time.
     ml_classifier = MLClassifier() if MLClassifier is not None else None
     local_llm = LocalLLM(use_ollama=use_ollama) if (LocalLLM is not None and (use_ai or ai_rename)) else None
 
@@ -80,6 +71,7 @@ def organize(
         task = progress.add_task(f"[cyan]{action_name} files...", total=len(files))
 
         for file in files:
+            # We skip hidden files to avoid messing with system/git configs.
             if file.name.startswith("."):
                 skipped.append(file.name)
                 progress.advance(task)
@@ -91,12 +83,13 @@ def organize(
                 progress.advance(task)
                 continue
 
-            # Phase 4.1: AI Logic
+            # AI Logic: Attempts to infer category/name from file content.
+            # This is significantly slower than extension matching but more accurate for mixed folders.
             override_cat = None
             dest_name = file.name
             
             if local_llm is not None:
-                progress.console.print(f"[dim]AI analyzing {file.name}...[/dim]")
+                progress.console.print(f"  [#e8550a]›[/#e8550a] [dim]AI analyzing {file.name}...[/dim]")
                 cat_guess, new_name = local_llm.analyze_and_rename(file, list(categories.keys()))
                 if use_ai and cat_guess:
                     override_cat = cat_guess
@@ -104,23 +97,26 @@ def organize(
                     dest_name = new_name
 
             if rename_only:
+                # rename_only keeps files in their original directory.
                 dest_path: Path = file.parent / dest_name
             else:
                 dest_path: Path = get_destination_path(file, destination, categories, date_sort, ml_classifier, override_cat, dest_name)
                 
             category_folder: Path = dest_path.parent
+            # resolve_collision handles the case where dest_path already exists (e.g. file_1.txt).
             dest_file: Path = resolve_collision(dest_path)
 
             if file == dest_file:
+                # Skip if the file is already in the right place to avoid redundant I/O.
                 progress.advance(task)
                 continue
 
             rel_dest = category_folder.relative_to(destination) if destination in category_folder.parents else category_folder
 
             if dry_run:
-                msg = f"[DRY RUN] {file.name} -> {rel_dest}/"
+                msg = f"  [#e8550a]›[/#e8550a] [dim]\[DRY RUN] {file.name} -> {rel_dest}/[/dim]"
                 logging.info(msg)
-                progress.console.print(f"[dim]{msg}[/dim]")
+                progress.console.print(msg)
             else:
                 try:
                     category_folder.mkdir(parents=True, exist_ok=True)
@@ -143,29 +139,30 @@ def organize(
                         "dest": str(dest_file.resolve())
                     })
                 except PermissionError:
-                    err = f"Permission denied: Could not move {file.name}"
+                    err = f"  [#e8550a]›[/#e8550a] [bold red]Permission denied:[/bold red] [red]Could not move {file.name}[/red]"
                     logging.error(err)
-                    progress.console.print(f"[red]{err}[/red]")
+                    progress.console.print(err)
                     skipped.append(file.name)
                 except Exception as e:
-                    err = f"Error moving {file.name}: {e}"
+                    err = f"  [#e8550a]›[/#e8550a] [bold red]Error moving {file.name}:[/bold red] [red]{e}[/red]"
                     logging.error(err)
-                    progress.console.print(f"[red]{err}[/red]")
+                    progress.console.print(err)
                     skipped.append(file.name)
             
             progress.advance(task)
 
-    console.print("\n[bold]─── Summary ───────────────────────────[/bold]")
+    console.print("\n  [#444444]TRANSACTION SUMMARY[/#444444]\n")
     if dry_run:
-        console.print("[yellow]Dry run complete. No files were changed.[/yellow]")
+        console.print("  [#e8550a]›[/#e8550a] [yellow]Dry run complete. No files were changed.[/yellow]")
     else:
         if rename_only:
             action_past = "renamed"
         else:
             action_past = "copied" if copy_mode else "moved"
             
-        console.print(f"[green]Files {action_past}:[/green]   {len(moved)}")
-        console.print(f"[yellow]Files skipped:[/yellow] {len(skipped)}")
+        console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Files {action_past}:[/#28c840]   [#ffffff]{len(moved)}[/#ffffff]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#febc2e]Files skipped:[/#febc2e] [#ffffff]{len(skipped)}[/#ffffff]")
         
         if history_ops:
             save_history(history_ops, "copy" if copy_mode else "move")
+    console.print("")

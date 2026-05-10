@@ -1,4 +1,4 @@
-# File Organizer — Development Roadmap 🗺️
+# F.O.R.G.E. Roadmap — Development Roadmap 🗺️
 
 ## Project Vision
 
@@ -15,26 +15,31 @@ Transform a simple file automation utility into an intelligent AI-powered deskto
 ##  Current Status
 
 ###  Completed Core Features
-- File organization by extension
-- Configurable categories
-- Recursive directory scanning
-- Dry-run preview mode
-- File collision resolution
-- Comprehensive logging
-- Custom source/destination paths
-- File exclusion support
-- Date-based sorting (YYYY/MM)
-- Copy/move modes
-- Undo functionality with history
+- [x] File organization by extension
+- [x] Configurable categories
+- [x] Recursive directory scanning
+- [x] Dry-run preview mode
+- [x] File collision resolution
+- [x] Comprehensive logging
+- [x] Custom source/destination paths
+- [x] File exclusion support
+- [x] Date-based sorting (YYYY/MM)
+- [x] Copy/move modes
+- [x] Undo functionality with history
+- [x] Real-time watchdog automation
+- [x] Local LLM support
+- [x] Semantic Search indexing and querying
+- [x] OCR extraction
 
 ###  Current Structure
-```
+```text
 file_organizer/
-├── src/main.py (322 lines)
-├── config/categories.json
-├── tests/test_organizer.py
-└── README.md
+├── src/            # Core engine source code (Refactored/Modular)
+├── config/         # JSON categories and user settings
+├── tests/          # Integration and unit tests
+└── README.md       # Project documentation
 ```
+
 
 ---
 

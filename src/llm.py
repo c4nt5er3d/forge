@@ -6,14 +6,13 @@ import json
 import re
 
 def sanitize_filename(name: str, suffix: str) -> str:
-    """Sanitizes an AI-generated filename to prevent OS errors and enforce safe formatting."""
+    # Enforces a strict safe-naming convention to prevent filesystem errors
+    # across different OSs (Windows/Mac/Linux) and avoid accidental path injection.
     if not name:
         return ""
-    # Strip existing extension if AI included it
     if name.lower().endswith(suffix.lower()):
         name = name[:-len(suffix)]
         
-    # Replace dangerous characters (like / \ : * ? " < > |) with underscores
     clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '_', name)
     clean_name = re.sub(r'_+', '_', clean_name).strip('_')
     
@@ -23,7 +22,8 @@ def sanitize_filename(name: str, suffix: str) -> str:
     return f"{clean_name}{suffix}"
 
 def extract_text_from_image(file_path: Path) -> str:
-    """Uses Tesseract OCR to perform text extraction on images."""
+    # Uses OCR to 'see' inside images, allowing us to categorize screenshots
+    # or photos based on their textual content rather than just visual pixels.
     try:
         import pytesseract
         from PIL import Image
@@ -44,7 +44,8 @@ def extract_text_from_image(file_path: Path) -> str:
         return "Image with no readable text."
 
 def extract_text(file_path: Path, max_chars: int = 2000) -> str:
-    """Extracts text from a file (up to max_chars) for LLM analysis."""
+    # Unified text extraction gateway. We limit characters (2000) to prevent 
+    # overloading the LLM context window while still capturing the core intent.
     text = ""
     try:
         if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.webp', '.heic']:
@@ -69,15 +70,15 @@ def extract_text(file_path: Path, max_chars: int = 2000) -> str:
     return text[:max_chars].strip()
 
 class LocalLLM:
-    """
-    Interfaces with the local Ollama instance or TF-IDF for Semantic Categorization and Smart Renaming.
-    """
+    # Gateway for local intelligence. We prefer local-first (Ollama/TF-IDF)
+    # to maintain user privacy and avoid API costs/latency.
     def __init__(self, model: str = "llama3.2", use_ollama: bool = False):
         self.model = model
         self.use_ollama = use_ollama
 
     def extract_keywords(self, text: str) -> str:
-        """Uses TF-IDF to extract top 3 keywords from text."""
+        # Fallback mechanism when Ollama is unavailable. 
+        # TF-IDF identifies the most unique words in a document to generate meaningful names.
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
             import re
@@ -102,25 +103,22 @@ class LocalLLM:
             return ""
 
     def analyze_and_rename(self, file_path: Path, categories: List[str]) -> Tuple[Optional[str], Optional[str]]:
-        """
-        Reads the file content and asks the LLM for:
-        1. The best category from the categories list.
-        2. A clean, descriptive filename.
-        Returns (category, new_filename)
-        """
+        # High-level logic that decides whether to use deep LLM analysis 
+        # or fast mathematical keyword extraction.
         text = extract_text(file_path)
         if not text:
             return None, None
             
         if not self.use_ollama:
-            # Option 1: Fast, shippable Keyword Extraction
+            # Fast, shippable keyword extraction (no GPU required).
             keywords = self.extract_keywords(text)
             new_name = None
             if keywords:
                 new_name = sanitize_filename(f"{keywords}{file_path.suffix}", file_path.suffix)
             return None, new_name
 
-        # Option 2: Ollama LLM
+        # The prompt is engineered to force a structured JSON response, 
+        # reducing the need for complex string parsing of AI output.
         prompt = f"""
         You are an expert file organizer. Analyze the following text (which is either extracted document content or an AI-generated description of a photo) and provide two things:
         1. The category this file belongs to, chosen STRICTLY from this exact list: {categories}. If unsure, pick the closest one.
@@ -147,7 +145,6 @@ class LocalLLM:
             if new_name:
                 new_name = sanitize_filename(new_name, file_path.suffix)
             
-            # Validation
             if category not in categories:
                 category = None
             

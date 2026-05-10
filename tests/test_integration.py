@@ -24,10 +24,10 @@ class TestIntegration(unittest.TestCase):
         main_script = Path(__file__).parent.parent / "src" / "main.py"
         
         result = subprocess.run([
-            "python", str(main_script),
+            "python3", str(main_script),
+            "copy",
             "--target", str(self.src_dir),
-            "--destination", str(self.dest_dir),
-            "--copy"
+            "--destination", str(self.dest_dir)
         ], capture_output=True, text=True)
         
         self.assertEqual(result.returncode, 0)

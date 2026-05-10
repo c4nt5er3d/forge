@@ -60,14 +60,14 @@ class MLClassifier:
         Folder names are treated as labels.
         """
         if Pipeline is None:
-            console.print("[red]Error:[/red] scikit-learn is required for training.")
+            console.print("  [bold red]Error:[/bold red] scikit-learn is required for training.")
             return
 
         if not data_dir.exists() or not data_dir.is_dir():
-            console.print(f"[red]Training error:[/red] {data_dir} is not a valid directory.")
+            console.print(f"  [bold red]Training error:[/bold red] [red]{data_dir} is not a valid directory.[/red]")
             return
 
-        console.print(f"[cyan]Scanning {data_dir} for training data...[/cyan]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]scanning for data:[/#888888] [#ffffff]{data_dir}[/#ffffff]")
         
         texts: List[str] = []
         labels: List[str] = []
@@ -82,11 +82,11 @@ class MLClassifier:
                         labels.append(category)
 
         if not texts:
-            console.print("[yellow]No training data found in the provided directory.[/yellow]")
+            console.print("  [yellow]No training data found in the provided directory.[/yellow]")
             return
 
-        console.print(f"[green]Found {len(texts)} files across {len(set(labels))} categories.[/green]")
-        console.print("[cyan]Training TF-IDF Vectorizer & MultinomialNB Model...[/cyan]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Found {len(texts)} files[/#28c840] across [#ffffff]{len(set(labels))}[/#ffffff] categories.")
+        console.print("  [#e8550a]›[/#e8550a] [#5bc8f5]Training TF-IDF Vectorizer & MultinomialNB Model...[/#5bc8f5]")
 
         self.pipeline = Pipeline([
             ('tfidf', TfidfVectorizer(max_features=5000, stop_words='english')),
@@ -98,7 +98,7 @@ class MLClassifier:
         # Save the trained model
         self.model_path.parent.mkdir(exist_ok=True)
         joblib.dump(self.pipeline, self.model_path)
-        console.print(f"[bold green]Model trained and saved to {self.model_path}[/bold green]")
+        console.print(f"\n  [#28c840]✔ Model trained and saved to:[/#28c840] [#ffffff]{self.model_path}[/#ffffff]\n")
 
     def predict(self, file_path: Path) -> Tuple[Optional[str], float]:
         """

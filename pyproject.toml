@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-organizer = "src.main:app"
+forge = "src.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]

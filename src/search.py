@@ -19,14 +19,15 @@ class SemanticSearch:
         
         try:
             from sentence_transformers import SentenceTransformer
-            # We use a fast, lightweight embedding model
+            # 'all-MiniLM-L6-v2' is chosen for its excellent balance between 
+            # encoding speed and semantic accuracy on local hardware.
             logging.info("Loading SentenceTransformer model...")
             self.model = SentenceTransformer('all-MiniLM-L6-v2')
             self.dimension = self.model.get_sentence_embedding_dimension()
         except ImportError:
             logging.error("sentence-transformers not installed.")
             self.model = None
-            self.dimension = 384 # default for all-MiniLM-L6-v2
+            self.dimension = 384 # Standard dimension for the MiniLM model series.
             
         self.index = None
         self.metadata: Dict[int, Dict[str, str]] = {}
@@ -71,16 +72,19 @@ class SemanticSearch:
             if file.name.startswith("."):
                 continue
                 
-            # Extract text using our existing LLM extraction pipeline (OCR + PyPDF2 + TXT)
+            # We reuse the LLM extraction pipeline to ensure search and 
+            # categorization see the exact same content representation.
             text = extract_text(file)
             if not text:
                 continue
                 
-            # Convert the text into a mathematical vector
+            # Embeddings turn human language into a vector space where 
+            # 'meaning' is represented by spatial proximity.
             embedding = self.model.encode([text])[0]
             new_embeddings.append(embedding)
             
-            # Save the human-readable metadata so we can map the vector back to the file
+            # Vector stores only save IDs; we must persist our own metadata 
+            # to map IDs back to human-readable file paths and snippets.
             new_metadata[current_id] = {
                 "path": str(file.resolve()),
                 "name": file.name,
@@ -89,13 +93,15 @@ class SemanticSearch:
             current_id += 1
             
         if new_embeddings:
+            # FAISS expects float32 arrays for IndexFlatL2 distance calculations.
             embeddings_array = np.array(new_embeddings).astype('float32')
             self.index.add(embeddings_array)
             self.metadata.update(new_metadata)
             self.save_index()
 
     def search(self, query: str, top_k: int = 3) -> List[Tuple[Dict[str, str], float]]:
-        """Searches the vector database using natural language."""
+        # Natural language query is embedded into the same vector space as the files.
+        # We then find the 'k' nearest neighbors using Euclidean (L2) distance.
         if self.index is None or self.index.ntotal == 0 or self.model is None:
             return []
             

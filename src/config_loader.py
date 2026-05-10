@@ -5,15 +5,8 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, List
 
 def validate_categories(categories: Any) -> None:
-    """
-    Validates the structure of the categories dictionary.
-    
-    Args:
-        categories: The loaded categories data.
-        
-    Raises:
-        ValueError: If the structure is invalid.
-    """
+    # Ensures the categories JSON is a flat dictionary of lists.
+    # This prevents the classifier from encountering malformed data types during matching.
     if not isinstance(categories, dict):
         raise ValueError("Categories must be a JSON object (dictionary).")
     for category, extensions in categories.items():
@@ -24,15 +17,8 @@ def validate_categories(categories: Any) -> None:
                 raise ValueError(f"Extension '{ext}' in category '{category}' must be a string.")
 
 def load_categories(config_path: Path = None) -> Dict[str, List[str]]:
-    """
-    Loads and validates the categories mapping from a JSON file.
-    
-    Args:
-        config_path: The path to the categories JSON file.
-        
-    Returns:
-        A dictionary mapping category names to lists of extensions.
-    """
+    # Loads the extension-to-category mapping.
+    # We default to an empty dict if the file is missing to allow for pure ML categorization.
     if config_path is None:
         config_path = Path(__file__).parent.parent / "config" / "categories.json"
     try:
@@ -48,28 +34,13 @@ def load_categories(config_path: Path = None) -> Dict[str, List[str]]:
         sys.exit(1)
 
 def validate_config(config: Any) -> None:
-    """
-    Validates the user configuration.
-    
-    Args:
-        config: The parsed configuration data.
-        
-    Raises:
-        ValueError: If the config is invalid.
-    """
+    # Validates general application settings.
     if not isinstance(config, dict):
         raise ValueError("Configuration must be a JSON object.")
 
 def load_config(env: str = "default") -> Dict[str, Any]:
-    """
-    Loads the environment-specific configuration file.
-    
-    Args:
-        env: The environment name (e.g., 'default', 'test').
-        
-    Returns:
-        A dictionary containing the configuration settings.
-    """
+    # Resolves configuration by layering environment-specific files over defaults.
+    # This enables easy switching between 'test' and 'default' modes for integration testing.
     config_dir: Path = Path(__file__).parent.parent / "config"
     env_config_path: Path = config_dir / f"config.{env}.json"
     default_config_path: Path = config_dir / "config.json"
@@ -98,15 +69,8 @@ def load_config(env: str = "default") -> Dict[str, Any]:
     return config
 
 def load_all_configs(env: str = "default") -> Tuple[Dict[str, Any], Dict[str, List[str]]]:
-    """
-    Loads both the main configuration and the categories mapping.
-    
-    Args:
-        env: The environment name to load.
-        
-    Returns:
-        A tuple containing the config dictionary and the categories dictionary.
-    """
+    # Unified loader that provides a consistent snapshot of both 
+    # system settings and categorization rules.
     config: Dict[str, Any] = load_config(env)
     categories_path: Path = Path(config.get("categories_file", Path(__file__).parent.parent / "config" / "categories.json"))
     categories: Dict[str, List[str]] = load_categories(categories_path)

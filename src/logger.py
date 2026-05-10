@@ -3,12 +3,9 @@ from pathlib import Path
 from datetime import datetime
 
 def setup_logging() -> None:
-    """
-    Configures the application's logging mechanism.
-    
-    Sets up a file handler to store logs in the `logs/` directory
-    without outputting to the terminal, allowing Rich to handle the UI.
-    """
+    # Configures a silent file-based logger.
+    # We deliberately omit terminal handlers to prevent log noise from 
+    # interfering with the Rich-based CLI UI.
     log_dir: Path = Path(__file__).parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
 

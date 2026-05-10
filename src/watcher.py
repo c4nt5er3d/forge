@@ -93,12 +93,12 @@ class StableFileHandler(FileSystemEventHandler):
             category_folder.mkdir(parents=True, exist_ok=True)
             if self.copy_mode:
                 shutil.copy2(str(file), str(dest_file))
-                console.print(f"[green]Watched & Copied:[/green] {file.name} -> {rel_dest}/")
+                console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Watched & Copied:[/#28c840] [#ffffff]{file.name}[/#ffffff] [#888888]-> {rel_dest}/[/#888888]")
                 logging.info(f"Watchdog Copied: {file.name} -> {rel_dest}/")
                 save_history([{"src": str(file), "dest": str(dest_file)}], "copy")
             else:
                 shutil.move(str(file), str(dest_file))
-                console.print(f"[green]Watched & Moved:[/green] {file.name} -> {rel_dest}/")
+                console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Watched & Moved:[/#28c840]  [#ffffff]{file.name}[/#ffffff] [#888888]-> {rel_dest}/[/#888888]")
                 logging.info(f"Watchdog Moved: {file.name} -> {rel_dest}/")
                 save_history([{"src": str(file), "dest": str(dest_file)}], "move")
         except PermissionError:
@@ -106,7 +106,7 @@ class StableFileHandler(FileSystemEventHandler):
             with self.lock:
                 self.pending_files[file] = time.time()
         except Exception as e:
-            console.print(f"[red]Error moving {file.name}: {e}[/red]")
+            console.print(f"  [bold red]Error moving {file.name}:[/bold red] [red]{e}[/red]")
             logging.error(f"Error moving {file.name}: {e}")
 
     def stop(self) -> None:
@@ -121,17 +121,17 @@ def start_watcher(target: Path, destination: Path, exclude: List[str], categorie
     observer = Observer()
     observer.schedule(event_handler, str(target), recursive=False)
     
-    console.print(f"\n[bold green]Starting Watchdog Service[/bold green]")
-    console.print(f"Monitoring:  [cyan]{target}[/cyan]")
-    console.print(f"Destination: [cyan]{destination}[/cyan]")
-    console.print("[dim]Press Ctrl+C to stop...[/dim]\n")
+    console.print(f"\n  [#444444]WATCHDOG SERVICE[/#444444]\n")
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]monitoring:[/#888888]  [#ffffff]{target}[/#ffffff]")
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]destination:[/#888888] [#ffffff]{destination}[/#ffffff]")
+    console.print("  [#e8550a]›[/#e8550a] [#5bc8f5]Status: Running... (Press Ctrl+C to stop)[/#5bc8f5]\n")
     
     observer.start()
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        console.print("\n[yellow]Stopping Watchdog gracefully...[/yellow]")
+        console.print("\n  [#e8550a]›[/#e8550a] [yellow]Stopping Watchdog gracefully...[/yellow]\n")
         observer.stop()
         event_handler.stop()
     observer.join()
