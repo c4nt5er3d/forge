@@ -48,11 +48,38 @@ class SemanticSearch:
                 self.index = faiss.read_index(str(self.index_path))
                 with open(self.metadata_path, 'rb') as f:
                     self.metadata = pickle.load(f)
+                self._rebuild_clean_index()
             except Exception as e:
                 logging.error(f"Failed to load search index: {e}")
                 self.index = faiss.IndexFlatL2(self.dimension)
         else:
             self.index = faiss.IndexFlatL2(self.dimension)
+
+    def _file_hash(self, file: Path) -> str:
+        stat = file.stat()
+        return f"{stat.st_mtime}_{stat.st_size}"
+
+    def _rebuild_clean_index(self):
+        """Remove stale entries and rebuild FAISS index from clean metadata."""
+        valid_metadata = {}
+        valid_embeddings = []
+        
+        # Collect only valid files
+        for idx, meta in self.metadata.items():
+            path = Path(meta["path"])
+            if path.exists() and self._file_hash(path) == meta.get("hash"):
+                valid_metadata[len(valid_embeddings)] = meta
+                # We need to re-encode because we don't store raw embeddings.
+                embedding = self.model.encode([meta["snippet"]])[0]
+                valid_embeddings.append(embedding)
+        
+        self.index = faiss.IndexFlatL2(self.dimension)
+        if valid_embeddings:
+            embeddings_array = np.array(valid_embeddings).astype('float32')
+            self.index.add(embeddings_array)
+        
+        self.metadata = valid_metadata
+        self.save_index()
 
     def save_index(self):
         faiss.write_index(self.index, str(self.index_path))
@@ -100,7 +127,8 @@ class SemanticSearch:
             new_metadata[current_id] = {
                 "path": str(file.resolve()),
                 "name": file.name,
-                "snippet": text[:500].replace("\n", " ") + "..."
+                "snippet": text[:500].replace("\n", " ") + "...",
+                "hash": self._file_hash(file)
             }
             current_id += 1
             

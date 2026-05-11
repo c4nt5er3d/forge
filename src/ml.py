@@ -46,13 +46,23 @@ class MLClassifier:
         # Convert to lowercase and strip extra spaces
         return ' '.join(name.lower().split())
 
-    def extract_features(self, file_path: Path) -> str:
+    def extract_features(self, file_path: Path, use_content: bool = False) -> str:
         """
-        Extracts features (clean filename + extension) as a single document string.
+        Extracts features (clean filename + extension + optional content) as a single document string.
         """
         clean_name = self._clean_filename(file_path.name)
         ext = file_path.suffix.lower().replace('.', '')
-        return f"{clean_name} {ext}"
+        base = f"{clean_name} {ext}"
+        
+        if use_content:
+            try:
+                from src.llm import extract_text
+                content = extract_text(file_path, max_chars=500)
+                content_clean = re.sub(r'[^a-zA-Z\s]', ' ', content).lower()
+                base = f"{base} {content_clean}"
+            except Exception:
+                pass  # Graceful degradation — filename features still used
+        return base
 
     def train(self, data_dir: Path) -> None:
         """
@@ -78,7 +88,7 @@ class MLClassifier:
                 category = category_folder.name
                 for file_path in category_folder.rglob("*"):
                     if file_path.is_file() and not file_path.name.startswith("."):
-                        texts.append(self.extract_features(file_path))
+                        texts.append(self.extract_features(file_path, use_content=True))
                         labels.append(category)
 
         if not texts:
@@ -107,7 +117,7 @@ class MLClassifier:
         if self.pipeline is None:
             return None, 0.0
         
-        features = self.extract_features(file_path)
+        features = self.extract_features(file_path, use_content=True)
         try:
             if hasattr(self.pipeline, "predict_proba"):
                 probs = self.pipeline.predict_proba([features])[0]

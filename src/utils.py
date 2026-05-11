@@ -108,8 +108,9 @@ def save_history(operations: List[Dict[str, str]], action_type: str) -> None:
 
 def undo_last() -> None:
     # Reverses the most recent file operations by reading the latest history log.
-    # It performs the inverse action (move back or delete copy) for each recorded path.
     history_dir: Path = Path(__file__).parent.parent / "history"
+    cursor_file = history_dir / ".undo_cursor"
+    
     if not history_dir.exists():
         console.print("  [bold red]Error:[/bold red] No history directory found.")
         return
@@ -119,8 +120,19 @@ def undo_last() -> None:
         console.print("  [yellow]Error:[/yellow] No history logs found.")
         return
 
-    last_log: Path = logs[-1]
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]undoing last run:[/#888888] [#ffffff]{last_log.name}[/#ffffff]\n")
+    # Track cursor
+    if cursor_file.exists():
+        cursor = int(cursor_file.read_text().strip())
+    else:
+        cursor = len(logs)
+    
+    if cursor == 0:
+        console.print("  [yellow]Nothing left to undo.[/yellow]")
+        return
+        
+    cursor -= 1
+    last_log: Path = logs[cursor]
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]undoing operation:[/#888888] [#ffffff]{last_log.name}[/#ffffff]\n")
 
     with open(last_log, "r") as f:
         data: Dict[str, Any] = json.load(f)
@@ -149,5 +161,5 @@ def undo_last() -> None:
         except Exception as e:
             console.print(f"    [bold red]Failed to revert {dest.name}:[/bold red] [red]{e}[/red]")
 
+    cursor_file.write_text(str(cursor))
     console.print(f"\n  [#e8550a]›[/#e8550a] [#28c840]Undo finished![/#28c840] [#ffffff]{undone_count}[/#ffffff] files reverted.\n")
-    last_log.unlink()
