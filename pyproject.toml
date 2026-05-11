@@ -39,6 +39,7 @@ full = [
 ]
 dev = [
     "pytest",
+    "ruff",
     "scikit-learn",
     "joblib",
     "sentence-transformers",
@@ -48,6 +49,18 @@ dev = [
     "Pillow",
     "PyPDF2"
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+    "models",
+    "dist",
+    "build",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
 
 [project.scripts]
 forge = "src.main:app"

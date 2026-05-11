@@ -1,8 +1,16 @@
 # F.O.R.G.E.
 
+[![CI](https://github.com/c4nt5er3d/forge/actions/workflows/test.yml/badge.svg)](https://github.com/c4nt5er3d/forge/actions/workflows/test.yml)
+![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)
+![Version](https://img.shields.io/badge/version-0.1.0-purple)
+![Lint](https://img.shields.io/badge/lint-ruff-FCC21B?logo=ruff&logoColor=black)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 **F.O.R.G.E. is a local-first CLI that safely previews, organizes, renames, searches, and undoes filesystem cleanup.**
 
 It is built for messy folders like Downloads: inspect what will happen, move or copy files into useful categories, rename documents when the content is trustworthy, and undo the operation if you do not like the result.
+
+> Note: This project started as a simple file organizer script, so the repository folder name remains `file_organizer` even though the CLI command is `forge`.
 
 ## Quickstart
 
@@ -36,18 +44,17 @@ forge undo --steps 1
 
 ## Demo
 
-Demo assets are intentionally kept out of the repository until recorded. Use this workflow for the portfolio GIF or screenshots:
+Use the committed demo fixtures and these commands to record a deterministic portfolio run:
 
 ```bash
-mkdir -p demo/messy demo/organized
-touch demo/messy/invoice.pdf demo/messy/vacation.jpg demo/messy/archive.zip demo/messy/script.py
+python demo/setup_demo_data.py
 forge organize demo/messy demo/organized --preview
 forge organize demo/messy demo/organized
 forge undo --preview
 forge undo --steps 1
 ```
 
-Suggested final assets:
+Expected media paths:
 
 ```text
 docs/demo/forge-preview.png
@@ -55,6 +62,13 @@ docs/demo/forge-organize.png
 docs/demo/forge-undo.png
 docs/demo/forge-demo.gif
 ```
+
+Demo placeholders (replace once recorded):
+
+![FORGE Preview](docs/demo/forge-preview.png)
+![FORGE Organize](docs/demo/forge-organize.png)
+![FORGE Undo](docs/demo/forge-undo.png)
+![FORGE Demo GIF](docs/demo/forge-demo.gif)
 
 ## Features
 
@@ -117,23 +131,46 @@ python -m pip install -e ".[full]"
 
 **`forge` command not found**
 
-Run the editable install from the project root:
+Run editable install from project root:
 
 ```bash
 python -m pip install -e ".[dev]"
+forge --help
 ```
 
-**Tesseract is missing**
+**Tesseract OCR not working for images**
 
-Core commands still work. Install Tesseract only if you need OCR-based image text extraction.
+FORGE still runs core organize/copy/undo commands without OCR, but image text extraction needs both Python packages and the system binary:
 
-**Ollama is unavailable**
+```bash
+# Python deps
+python -m pip install -e ".[ai]"
 
-Use normal `forge rename <folder>` for local quality-gated keyword naming, or install/start Ollama before using `--local`.
+# Verify the system binary exists
+tesseract --version
+```
+
+If `tesseract` is not found, install it (examples):
+
+- macOS (Homebrew): `brew install tesseract`
+- Ubuntu/Debian: `sudo apt-get update && sudo apt-get install -y tesseract-ocr`
+
+**Ollama local mode unavailable**
+
+Normal rename still works without Ollama (`forge rename <folder>`). `--local` needs the Ollama daemon and model:
+
+```bash
+ollama --version
+ollama serve
+ollama pull llama3.2
+forge rename <folder> --local
+```
+
+If `ollama.chat` fails, check that `ollama serve` is running in another terminal and the model is pulled.
 
 **Semantic search returns no results**
 
-Install AI dependencies, build the index, then search:
+Install AI dependencies, build index, then query:
 
 ```bash
 python -m pip install -e ".[ai]"
@@ -149,11 +186,30 @@ Run against folders your user owns, or choose a writable destination. Preview mo
 
 ```bash
 python -m pip install -e ".[dev]"
+ruff check src demo
 python -m pytest tests/
+```
+
+## Release Notes
+
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Initial release notes: [RELEASE_NOTES_0.1.0.md](RELEASE_NOTES_0.1.0.md)
+
+## Final Fresh-Clone Test
+
+```bash
+git clone <your-repo-url>
+cd file_organizer
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+forge --help
+ruff check src demo
+python -m pytest tests/
+python demo/setup_demo_data.py
+forge organize demo/messy demo/organized --preview
 ```
 
 Current version: **0.1.0**
 
-## License
 
-MIT. See [LICENSE](LICENSE).
