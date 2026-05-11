@@ -72,6 +72,8 @@ def load_all_configs(env: str = "default") -> Tuple[Dict[str, Any], Dict[str, Li
     # Unified loader that provides a consistent snapshot of both 
     # system settings and categorization rules.
     config: Dict[str, Any] = load_config(env)
+    validate_config(config)
     categories_path: Path = Path(config.get("categories_file", Path(__file__).parent.parent / "config" / "categories.json"))
     categories: Dict[str, List[str]] = load_categories(categories_path)
+    validate_categories(categories)
     return config, categories
