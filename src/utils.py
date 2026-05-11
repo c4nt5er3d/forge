@@ -3,7 +3,7 @@ import logging
 import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -34,14 +34,14 @@ def print_custom_help() -> None:
     console.print("\n  [#444444]COMMANDS[/#444444]\n")
     
     commands = [
-        ("organize", "--target", "Sort files into categories"),
-        ("watch", "--target", "Monitor folder in real-time"),
-        ("copy", "--target", "Copy and organize without moving originals"),
-        ("rename", "--ollama", "Smart rename with local LLM"),
+        ("organize", "--smart", "Organize files intelligently"),
+        ("rename", "--smart", "Smart rename files in-place"),
+        ("copy", "", "Copy and organize files"),
         ("search", '"query"', "Semantic file search"),
+        ("watch", "", "Real-time folder monitoring"),
         ("undo", "", "Revert last operation"),
-        ("train", "--data", "Train ML classifier"),
-        ("index", "--target", "Index files for semantic search"),
+        ("train", "", "Train ML classifier"),
+        ("index", "", "Index files for search"),
     ]
     
     for cmd, flag, desc in commands:
@@ -54,7 +54,7 @@ def print_custom_help() -> None:
         console.print(f"  {prompt} {name} {sub}{flag_str} {description}")
         
     console.print("\n  [#1e1e1e]────────────────────────────────────────────────────────────[/#1e1e1e]")
-    console.print("  [#555555]v1.0.0  ·  python 3.9+  ·  built by[/#555555] [#e8550a]jay[/#e8550a]\n")
+    console.print("  [#555555]v0.1.0  ·  python 3.10+  ·  built by[/#555555] [#e8550a]jay[/#e8550a]\n")
     console.print("  [#1a1a1a]╰──────────────────────────────────────────────────────────╯[/#1a1a1a]\n")
 
 def resolve_collision(destination: Path) -> Path:
@@ -107,30 +107,58 @@ def save_history(operations: List[Dict[str, str]], action_type: str) -> None:
     
     logging.info(f"Transaction log saved: {history_file.name}")
 
-def undo_last() -> None:
+def _active_history_logs(history_dir: Path) -> List[Path]:
+    logs: List[Path] = []
+    for log in sorted(history_dir.glob("history_*.json")):
+        try:
+            with open(log, "r") as f:
+                if json.load(f).get("status") == "active":
+                    logs.append(log)
+        except Exception:
+            logging.error(f"Failed to inspect history log: {log}")
+    return logs
+
+def _preview_history_log(log: Path) -> None:
+    with open(log, "r") as f:
+        data = json.load(f)
+    action = data.get("action", "unknown")
+    operations = data.get("operations", [])
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]would undo:[/#888888] [#ffffff]{log.name}[/#ffffff] [dim]({action}, {len(operations)} files)[/dim]")
+    for op in reversed(operations):
+        console.print(f"    [dim]{op.get('dest')} -> {op.get('src')}[/dim]")
+
+def undo_last(preview: bool = False, steps: int = 1, history_dir: Optional[Path] = None) -> None:
     # Reverses the most recent file operations by finding the latest 'active' history log.
-    history_dir: Path = Path(__file__).parent.parent / "history"
+    history_dir = history_dir or Path(__file__).parent.parent / "history"
     if not history_dir.exists():
         console.print("  [bold red]Error:[/bold red] No history directory found.")
         return
 
-    logs: List[Path] = sorted(history_dir.glob("history_*.json"))
-    
-    # Find the latest active log
-    target_log = None
-    data = None
-    for log in reversed(logs):
-        with open(log, "r") as f:
-            temp_data = json.load(f)
-            if temp_data.get("status") == "active":
-                target_log = log
-                data = temp_data
-                break
-    
-    if not target_log:
+    logs: List[Path] = _active_history_logs(history_dir)
+    if not logs:
         console.print("  [yellow]Nothing left to undo.[/yellow]")
         return
-        
+
+    steps = max(1, steps)
+    target_logs = list(reversed(logs))[:steps]
+
+    if preview:
+        console.print(f"  [#e8550a]›[/#e8550a] [yellow]Undo preview. No files will be changed.[/yellow]\n")
+        for log in target_logs:
+            _preview_history_log(log)
+        console.print("")
+        return
+
+    total_undone = 0
+    for target_log in target_logs:
+        total_undone += _undo_history_log(target_log)
+    
+    console.print(f"\n  [#e8550a]›[/#e8550a] [#28c840]Undo finished![/#28c840] [#ffffff]{total_undone}[/#ffffff] files reverted.\n")
+
+def _undo_history_log(target_log: Path) -> int:
+    with open(target_log, "r") as f:
+        data = json.load(f)
+
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]undoing operation:[/#888888] [#ffffff]{target_log.name}[/#ffffff]\n")
 
     action: str = data["action"]
@@ -163,5 +191,4 @@ def undo_last() -> None:
     data["status"] = "undone"
     with open(target_log, "w") as f:
         json.dump(data, f, indent=4)
-        
-    console.print(f"\n  [#e8550a]›[/#e8550a] [#28c840]Undo finished![/#28c840] [#ffffff]{undone_count}[/#ffffff] files reverted.\n")
+    return undone_count

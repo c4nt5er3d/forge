@@ -1,4 +1,0 @@
-16:36:53  INFO  Log file initialized at /Users/jay/Documents/file_organizer/logs/organizer_2026-05-10_16-36-53.log
-16:36:53  INFO  HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
-16:36:53  INFO  Moved:     xxx.png -> Images/
-16:36:53  INFO  Transaction log saved: history_2026-05-10_16-36-53.json

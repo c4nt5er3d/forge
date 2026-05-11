@@ -1,4 +1,0 @@
-16:15:36  INFO  Log file initialized at /Users/jay/Documents/file_organizer/logs/organizer_2026-05-10_16-15-36.log
-16:15:39  INFO  HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
-16:15:39  INFO  Renamed:   ajfbaggg.txt -> a_story_about_a_cool_red_dragon_named_Fizz_and_he_likes_fish.txt
-16:15:39  INFO  Transaction log saved: history_2026-05-10_16-15-39.json

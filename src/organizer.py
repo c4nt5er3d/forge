@@ -102,6 +102,7 @@ def organize(
 
             # AI Logic: Attempts to infer category/name from file content.
             override_cat, dest_name = ai_results.get(file, (None, file.name))
+            dest_name = dest_name or file.name
 
             if rename_only:
                 # rename_only keeps files in their original directory.
@@ -110,11 +111,17 @@ def organize(
                 dest_path: Path = get_destination_path(file, destination, categories, date_sort, ml_classifier, override_cat, dest_name)
                 
             category_folder: Path = dest_path.parent
+            if rename_only and dest_path == file:
+                skipped.append(file.name)
+                progress.advance(task)
+                continue
+
             # resolve_collision handles the case where dest_path already exists (e.g. file_1.txt).
             dest_file: Path = resolve_collision(dest_path)
 
             if file == dest_file:
                 # Skip if the file is already in the right place to avoid redundant I/O.
+                skipped.append(file.name)
                 progress.advance(task)
                 continue
 

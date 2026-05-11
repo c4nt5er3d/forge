@@ -1,6 +1,7 @@
 import unittest
 import os
 import shutil
+import json
 from pathlib import Path
 import sys
 
@@ -97,30 +98,53 @@ class TestFileOrganizer(unittest.TestCase):
         self.assertTrue((dest_dir / "Docs" / "to_copy.txt").exists())
 
     def test_undo(self):
-        # Ensure clean state
-        history_dir = Path("history")
-        history_dir.mkdir(exist_ok=True)
-        cursor_file = history_dir / ".undo_cursor"
-        if cursor_file.exists():
-            cursor_file.unlink()
-
         src_file = self.test_dir / "to_undo.txt"
         src_file.touch()
         dest_dir = self.test_dir / "destination"
+        dest_dir.mkdir()
+        moved_file = dest_dir / "to_undo.txt"
+        shutil.move(str(src_file), str(moved_file))
 
-        organize(self.test_dir, dest_dir, dry_run=False, recursive=False, exclude=[], categories=self.categories, date_sort=False, copy_mode=False)
-
-        moved_file = dest_dir / "Docs" / "to_undo.txt"
         self.assertTrue(moved_file.exists())
         self.assertFalse(src_file.exists())
 
-        # Manually set cursor to the correct position (1, because we just made 1 move)
-        cursor_file.write_text("1")
+        history_dir = self.test_dir / "history"
+        history_dir.mkdir()
+        history_file = history_dir / "history_2026-05-11_00-00-00.json"
+        history_file.write_text(json.dumps({
+            "timestamp": "2026-05-11_00-00-00",
+            "action": "move",
+            "status": "active",
+            "operations": [{"src": str(src_file), "dest": str(moved_file)}]
+        }))
 
-        undo_last()
+        undo_last(history_dir=history_dir)
 
         self.assertTrue(src_file.exists())
         self.assertFalse(moved_file.exists())
+
+    def test_undo_preview_does_not_change_files(self):
+        src_file = self.test_dir / "preview.txt"
+        dest_dir = self.test_dir / "destination"
+        dest_dir.mkdir()
+        moved_file = dest_dir / "preview.txt"
+        moved_file.touch()
+
+        history_dir = self.test_dir / "history"
+        history_dir.mkdir()
+        history_file = history_dir / "history_2026-05-11_00-00-00.json"
+        history_file.write_text(json.dumps({
+            "timestamp": "2026-05-11_00-00-00",
+            "action": "move",
+            "status": "active",
+            "operations": [{"src": str(src_file), "dest": str(moved_file)}]
+        }))
+
+        undo_last(preview=True, steps=1, history_dir=history_dir)
+
+        self.assertFalse(src_file.exists())
+        self.assertTrue(moved_file.exists())
+        self.assertEqual(json.loads(history_file.read_text())["status"], "active")
 
     def test_edge_case_no_permissions(self):
         from unittest.mock import patch

@@ -115,13 +115,13 @@ class StableFileHandler(FileSystemEventHandler):
         self.running = False
         self.processor_thread.join()
 
-def start_watcher(target: Path, destination: Path, exclude: List[str], categories: Dict[str, List[str]], date_sort: bool = False, copy_mode: bool = False) -> None:
+def start_watcher(target: Path, destination: Path, exclude: List[str], categories: Dict[str, List[str]], date_sort: bool = False, copy_mode: bool = False, recursive: bool = False) -> None:
     """
     Starts the watchdog monitoring service on the target directory.
     """
     event_handler = StableFileHandler(target, destination, exclude, categories, date_sort, copy_mode)
     observer = Observer()
-    observer.schedule(event_handler, str(target), recursive=False)
+    observer.schedule(event_handler, str(target), recursive=recursive)
     
     console.print(f"\n  [#444444]WATCHDOG SERVICE[/#444444]\n")
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]monitoring:[/#888888]  [#ffffff]{target}[/#ffffff]")

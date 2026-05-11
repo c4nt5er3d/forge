@@ -7,6 +7,7 @@ name = "file-organizer"
 version = "0.1.0"
 description = "An intelligent AI-powered desktop assistant for organizing files."
 authors = [{name = "Jay"}]
+requires-python = ">=3.10"
 dependencies = [
     "typer",
     "rich",
@@ -27,6 +28,17 @@ ai = [
     "PyPDF2"
 ]
 full = [
+    "scikit-learn",
+    "joblib",
+    "sentence-transformers",
+    "faiss-cpu",
+    "ollama",
+    "pytesseract",
+    "Pillow",
+    "PyPDF2"
+]
+dev = [
+    "pytest",
     "scikit-learn",
     "joblib",
     "sentence-transformers",

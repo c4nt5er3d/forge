@@ -1,16 +1,19 @@
 import os
-import faiss
 import numpy as np
 import pickle
 import logging
 import re
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from rich.progress import Progress
 
 from src.llm import extract_text
 from src.utils import collect_files
 
+try:
+    import faiss
+except ImportError:
+    faiss = None
 
 def clean_text_for_search(text: str) -> str:
     # Removes underscores, dashes, and extra whitespace that create noise for the ML model.
@@ -43,12 +46,17 @@ class SemanticSearch:
         self.load_index()
 
     def load_index(self):
+        if faiss is None:
+            logging.error("faiss-cpu not installed.")
+            self.index = None
+            return
         if self.index_path.exists() and self.metadata_path.exists():
             try:
                 self.index = faiss.read_index(str(self.index_path))
                 with open(self.metadata_path, 'rb') as f:
                     self.metadata = pickle.load(f)
-                self._rebuild_clean_index()
+                if self.model is not None:
+                    self._rebuild_clean_index()
             except Exception as e:
                 logging.error(f"Failed to load search index: {e}")
                 self.index = faiss.IndexFlatL2(self.dimension)
@@ -61,6 +69,8 @@ class SemanticSearch:
 
     def _rebuild_clean_index(self):
         """Remove stale entries and rebuild FAISS index from clean metadata."""
+        if faiss is None or self.model is None:
+            return
         valid_metadata = {}
         valid_embeddings = []
         
@@ -82,30 +92,36 @@ class SemanticSearch:
         self.save_index()
 
     def save_index(self):
+        if faiss is None or self.index is None:
+            return
         faiss.write_index(self.index, str(self.index_path))
         with open(self.metadata_path, 'wb') as f:
             pickle.dump(self.metadata, f)
 
-    def build_index(self, target_dir: Path, progress: Progress):
-        if self.model is None:
-            logging.error("Cannot build index without sentence-transformers.")
+    def build_index(self, target_dir: Path, progress: Optional[Progress] = None, recursive: bool = True, exclude: Optional[List[str]] = None):
+        if self.model is None or faiss is None or self.index is None:
+            logging.error("Cannot build index without sentence-transformers and faiss-cpu.")
             return
 
-        files = collect_files(target_dir, recursive=True)
+        excluded = {f".{e.lstrip('.').lower()}" for e in (exclude or [])}
+        files = collect_files(target_dir, recursive=recursive)
         if not files:
             return
 
-        task = progress.add_task("[cyan]Indexing files for semantic search...", total=len(files))
+        task = progress.add_task("[cyan]Indexing files for semantic search...", total=len(files)) if progress else None
         
         new_embeddings = []
         new_metadata = {}
         current_id = self.index.ntotal
 
         for file in files:
-            progress.advance(task)
+            if progress and task is not None:
+                progress.advance(task)
             
             # Explicitly ignore git internals and hidden files
             if ".git" in file.parts or file.name.startswith("."):
+                continue
+            if file.suffix.lower() in excluded:
                 continue
                 
             # We reuse the LLM extraction pipeline to ensure search and 

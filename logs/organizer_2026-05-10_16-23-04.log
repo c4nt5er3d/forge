@@ -1,4 +1,0 @@
-16:23:04  INFO  Log file initialized at /Users/jay/Documents/file_organizer/logs/organizer_2026-05-10_16-23-04.log
-16:23:05  INFO  HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
-16:23:05  INFO  Renamed:   Philosophy_of_Meaningful_Experience.txt -> Electricity_Bill_March_2024.txt
-16:23:05  INFO  Transaction log saved: history_2026-05-10_16-23-05.json

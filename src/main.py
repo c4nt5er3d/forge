@@ -106,144 +106,112 @@ def run_command(
 
 @app.command(name="organize")
 def organize_command(
-    target: Optional[str] = typer.Option(None, "--target", "-t", help="Folder to organize"),
-    destination: Optional[str] = typer.Option(None, "--destination", "-d", help="Where to put sorted folders"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview what would happen without moving anything"),
-    recursive: bool = typer.Option(False, "--recursive", "-r", help="Also organize files inside subfolders"),
-    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="File extensions to skip"),
-    date_sort: bool = typer.Option(False, "--date-sort", help="Organize files into year/month subfolders"),
-    use_ai: bool = typer.Option(True, "--use-ai", help="Enable semantic AI categorization"),
-    ai_rename: bool = typer.Option(False, "--ai-rename", help="Enable smart file renaming (TF-IDF or LLM)"),
-    ollama: bool = typer.Option(False, "--ollama", help="Use local Ollama"),
-    env: str = typer.Option("default", "--env", help="Environment to load config for")
+    target: Path = typer.Argument(..., help="Folder to organize"),
+    destination: Optional[Path] = typer.Argument(None, help="Destination folder"),
+    preview: bool = typer.Option(False, "--preview", "-p", help="Show changes without moving files"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files matching pattern"),
+    date_sort: bool = typer.Option(False, "--date-sort", help="Organize by date"),
+    smart: bool = typer.Option(False, "--smart", "-s", help="Use AI for categorization"),
+    local: bool = typer.Option(False, "--local", "-l", help="Force local LLM (Ollama)"),
+    env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
     """Sort files into categories automatically."""
-    _run_organize(target, destination, dry_run, recursive, exclude, date_sort, False, use_ai, ai_rename, False, ollama, env)
+    dest = destination if destination else target
+    _run_organize(target, dest, preview, recursive, exclude or [], date_sort, False, smart, False, False, local, env)
 
 @app.command(name="copy")
 def copy_command(
-    target: Optional[str] = typer.Option(None, "--target", "-t", help="Folder to copy from"),
-    destination: Optional[str] = typer.Option(None, "--destination", "-d", help="Where to put copies"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview what would happen"),
-    recursive: bool = typer.Option(False, "--recursive", "-r", help="Also copy files inside subfolders"),
-    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="File extensions to skip"),
-    date_sort: bool = typer.Option(False, "--date-sort", help="Organize into year/month subfolders"),
-    env: str = typer.Option("default", "--env", help="Environment to load config for")
+    source: Path = typer.Argument(..., help="Source folder"),
+    destination: Path = typer.Argument(..., help="Destination folder"),
+    preview: bool = typer.Option(False, "--preview", "-p", help="Show changes without copying"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files"),
+    date_sort: bool = typer.Option(False, "--date-sort", help="Organize by date"),
+    env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
     """Copy and organize files without moving originals."""
-    # Forces copy_mode=True to ensure source files remain untouched.
-    _run_organize(target, destination, dry_run, recursive, exclude, date_sort, True, False, False, False, False, env)
+    _run_organize(source, destination, preview, recursive, exclude or [], date_sort, True, False, False, False, False, env)
 
 @app.command(name="rename")
 def rename_command(
-    target: Optional[str] = typer.Option(None, "--target", "-t", help="Folder to rename files in"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview renames"),
-    ollama: bool = typer.Option(True, "--ollama", help="Use local Ollama for smart renaming"),
-    env: str = typer.Option("default", "--env", help="Environment to load config for")
+    target: Path = typer.Argument(..., help="Folder to rename files in"),
+    preview: bool = typer.Option(False, "--preview", "-p", help="Show renames without applying"),
+    smart: bool = typer.Option(False, "--smart", "-s", help="Use AI for smart renaming"),
+    local: bool = typer.Option(False, "--local", "-l", help="Use local LLM (Ollama)"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files"),
+    env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
-    """Smart rename files with local LLM."""
-    # Specialized flow that renames files in-place without moving them to category folders.
-    _run_organize(target, None, dry_run, False, None, False, False, False, True, True, ollama, env)
+    """Smart rename files in-place using AI."""
+    _run_organize(target, target, preview, recursive, exclude or [], False, False, False, True, True, local, env)
 
 @app.command(name="watch")
 def watch_command(
-    target: Optional[str] = typer.Option(None, "--target", "-t", help="Folder to monitor"),
-    destination: Optional[str] = typer.Option(None, "--destination", "-d", help="Where to put sorted folders"),
-    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="File extensions to skip"),
-    date_sort: bool = typer.Option(False, "--date-sort", help="Organize files into year/month subfolders"),
-    copy: bool = typer.Option(False, "--copy", "-c", help="Copy files instead of moving them"),
-    env: str = typer.Option("default", "--env", help="Environment to load config for")
+    target: Path = typer.Argument(..., help="Folder to monitor"),
+    destination: Optional[Path] = typer.Argument(None, help="Destination folder"),
+    smart: bool = typer.Option(False, "--smart", "-s", help="Use AI categorization"),
+    local: bool = typer.Option(False, "--local", "-l", help="Use local LLM"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Watch subdirectories"),
+    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files"),
+    date_sort: bool = typer.Option(False, "--date-sort", help="Organize by date"),
+    env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
-    """
-    Real-time watchdog to monitor and sort files automatically.
-    """
+    """Real-time folder monitoring and organization."""
     setup_logging()
-    print_ascii_banner()
     config, categories = load_all_configs(env=env)
-
-    target_str = target if target is not None else config.get("default_target", ".")
-    target_path = Path(target_str).resolve()
-    
-    dest_str = destination if destination is not None else config.get("default_destination")
-    destination_path = Path(dest_str).resolve() if dest_str else target_path
-
+    dest = destination if destination else target
     exclude_list = exclude if exclude is not None else config.get("exclude", [])
     date_sort_mode = date_sort or config.get("date_sort", False)
-    copy_mode = copy or config.get("copy_mode", False)
+    copy_mode = config.get("copy_mode", False)
+    start_watcher(target.resolve(), dest.resolve(), exclude_list, categories, date_sort_mode, copy_mode, recursive=recursive)
 
-    if not target_path.exists() or not target_path.is_dir():
-        console.print(f"  [bold red]Error:[/bold red] Target path is not a valid directory: {target_path}")
-        raise typer.Exit(1)
-
-    console.print("  [#444444]WATCHER CONFIGURATION[/#444444]\n")
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]target:[/#888888]      [#ffffff]{target_path}[/#ffffff]")
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]destination:[/#888888] [#ffffff]{destination_path}[/#ffffff]")
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]date sort:[/#888888]    [#5bc8f5]{date_sort_mode}[/#5bc8f5]")
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]copy mode:[/#888888]    [#5bc8f5]{copy_mode}[/#5bc8f5]\n")
-
-    start_watcher(target_path, destination_path, exclude_list, categories, date_sort_mode, copy_mode)
+@app.command(name="undo")
+def undo_command(
+    preview: bool = typer.Option(False, "--preview", "-p", help="Show what would be reverted"),
+    steps: int = typer.Option(1, "--steps", "-n", help="Number of operations to undo")
+) -> None:
+    """Undo last organization operation."""
+    from src.utils import undo_last
+    undo_last(preview=preview, steps=steps)
 
 @app.command(name="train")
 def train_command(
-    data_dir: str = typer.Argument(..., help="Path to an already organized directory to use as training data")
+    data_dir: Path = typer.Argument(..., help="Folder for training"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
-    """
-    Train the ML classifier using an organized folder.
-    """
-    # We delay ML imports to keep the CLI responsive for non-ML tasks.
-    setup_logging()
-    print_ascii_banner()
-    data_path = Path(data_dir).resolve()
-    
-    try:
-        from src.ml import MLClassifier
-        classifier = MLClassifier()
-        console.print(f"  [#e8550a]›[/#e8550a] [#888888]training on:[/#888888] [#ffffff]{data_path}[/#ffffff]\n")
-        classifier.train(data_path)
-    except ImportError:
-        console.print("  [bold red]Error:[/bold red] ML dependencies not installed. Please run [cyan]pip install scikit-learn joblib[/cyan]")
-        raise typer.Exit(1)
-
-@app.command(name="undo")
-def undo_command() -> None:
-    """
-    Undo last organization operation.
-    """
-    setup_logging()
-    undo_last()
+    """Train the ML classifier."""
+    from src.ml import MLClassifier
+    classifier = MLClassifier()
+    classifier.train(data_dir)
 
 @app.command(name="index")
 def index_command(
-    target: str = typer.Option(..., "--target", "-t", help="Folder to index for semantic search")
+    target: Path = typer.Argument(..., help="Folder to index"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files"),
+    env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
-    """
-    Index files so you can search their contents using natural language.
-    """
+    """Index files for semantic search."""
     setup_logging()
-    print_ascii_banner()
-    target_path = Path(target).resolve()
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]building index for:[/#888888] [#ffffff]{target_path}[/#ffffff]\n")
-    
-    try:
-        from src.search import SemanticSearch
-        searcher = SemanticSearch()
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console
-        ) as progress:
-            searcher.build_index(target_path, progress)
-        console.print("\n  [#28c840]✔ Indexing complete! You can now use 'forge search'.[/#28c840]\n")
-    except Exception as e:
-        console.print(f"  [bold red]Failed to build index:[/bold red] [red]{e}[/red]")
+    from src.search import SemanticSearch
+    searcher = SemanticSearch()
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console
+    ) as progress:
+        searcher.build_index(target, progress, recursive=recursive, exclude=exclude or [])
+    console.print("\n  [#28c840]Indexing complete. You can now use 'forge search'.[/#28c840]\n")
 
 @app.command(name="search")
 def search_command(
     query: str = typer.Argument(..., help="Natural language search query"),
-    limit: int = typer.Option(3, "--limit", "-l", help="Number of results to return")
+    limit: int = typer.Option(3, "--limit", "-n", help="Number of results to return")
 ) -> None:
     """
     Search for files using natural language (e.g. 'tax forms from last year').

@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 env/
 venv/
 .venv/
@@ -17,6 +20,8 @@ venv/
 # Project specific
 history/
 models/
+models/search_index/
+test_integration_env/
 
 # Distribution / Packaging
 dist/
@@ -25,4 +30,4 @@ build/
 *.egg
 
 # Logs
-logs/*.log
+logs/
