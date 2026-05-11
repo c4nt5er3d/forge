@@ -10,14 +10,12 @@
 
 It is built for messy folders like Downloads: inspect what will happen, move or copy files into useful categories, rename documents when the content is trustworthy, and undo the operation if you do not like the result.
 
-> Note: This project started as a simple file organizer script, so the repository folder name remains `file_organizer` even though the CLI command is `forge`.
-
-## Quickstart
+> Note: This project started as a simple file organizer script, but it turned into this somehow.
 
 ```bash
 git clone https://github.com/c4nt5er3d/forge
-cd file_organizer
-python3 -m venv .venv
+cd forge
+python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
 forge --help
@@ -201,7 +199,7 @@ python -m pytest tests/
 
 ```bash
 git clone https://github.com/c4nt5er3d/forge
-cd file_organizer
+cd forge
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
