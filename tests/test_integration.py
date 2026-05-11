@@ -7,6 +7,8 @@ from pathlib import Path
 class TestIntegration(unittest.TestCase):
     def setUp(self):
         self.test_dir = Path("test_integration_env")
+        if self.test_dir.exists():
+            shutil.rmtree(self.test_dir)
         self.test_dir.mkdir(exist_ok=True)
         self.src_dir = self.test_dir / "src"
         self.src_dir.mkdir()

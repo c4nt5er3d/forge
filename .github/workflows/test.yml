@@ -22,7 +22,8 @@ jobs:
         
     - name: Install dependencies
       run: |
-        pip install typer rich watchdog scikit-learn joblib
+        pip install .[full]
+        pip install pytest
         
     - name: Run Tests
-      run: python -m unittest discover tests
+      run: python -m pytest tests/
