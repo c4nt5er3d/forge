@@ -121,7 +121,7 @@ def organize(
             rel_dest = category_folder.relative_to(destination) if destination in category_folder.parents else category_folder
 
             if dry_run:
-                msg = f"  [#e8550a]›[/#e8550a] [dim]\[DRY RUN] {file.name} -> {rel_dest}/[/dim]"
+                msg = rf"  [#e8550a]›[/#e8550a] [dim]\[DRY RUN] {file.name} -> {rel_dest}/[/dim]"
                 logging.info(msg)
                 progress.console.print(msg)
             else:

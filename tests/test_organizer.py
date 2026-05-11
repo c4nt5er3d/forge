@@ -119,8 +119,9 @@ class TestFileOrganizer(unittest.TestCase):
 
         undo_last()
 
-        self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
+        self.assertTrue(src_file.exists())
         self.assertFalse(moved_file.exists())
+
     def test_edge_case_no_permissions(self):
         from unittest.mock import patch
         src_file = self.test_dir / "no_perm.txt"
