@@ -2,71 +2,59 @@
 **File Organization & Retrieval Generation Engine** — An intelligent, AI-driven filesystem manager for the modern developer.
 
 ## Overview
-F.O.R.G.E. is a local-first automation tool designed to solve the chaos of unorganized directories. Unlike simple extension-based sorters, it leverages Hybrid ML categorization and Local LLM (Ollama) analysis to understand file content, perform smart renaming, and enable semantic natural language search across your filesystem.
+F.O.R.G.E. is a local-first automation tool designed to solve the chaos of unorganized directories. It leverages Hybrid ML categorization, Local LLM analysis, and vector-based semantic search to understand file content, perform smart renaming, and make your filesystem queryable.
+
+> Built with AI assistance (Claude) — architecture decisions, implementation, and design were validated throughout.
 
 ## Features
-- **Smart Organize**: Sorts files into logical categories using a hybrid approach of deterministic extension rules and ML classification.
-- **Real-Time Watchdog**: Monitors directories (like Downloads) and instantly organizes incoming files with debounce protection for stable I/O.
-- **AI-Driven Renaming**: Uses local LLMs to generate descriptive, professional filenames based on actual file content or OCR data.
-- **Semantic Search**: Natural language search (e.g., "tax forms from last year") using vector embeddings and L2 distance matching. Now with 500-character snippet previews for better context.
-- **Git-Aware Indexing**: Automatically ignores `.git` directories to prevent binary noise and ensure search results remain relevant to your source files.
-- **OCR Integration**: Automatically extracts text from images, receipts, and screenshots to inform categorization and search.
-- **Transactional Undo**: Granular history tracking allows you to revert any batch operation with a single command.
-- **First-Class Commands**: New native `copy`, `organize`, and `rename` commands for intuitive workflow control.
+- **Smart Organize**: Categorizes files via deterministic extension rules, ML classification, and LLM analysis.
+- **Parallel Analysis**: Uses concurrent processing to analyze hundreds of files in seconds.
+- **Real-Time Watchdog**: Monitors directories with debounce protection to ensure stable file processing.
+- **Semantic Search**: Natural language search (e.g., "tax forms from last year") using vector embeddings.
+- **Transaction History**: Stack-based undo support to revert batch operations safely.
+- **Modular Design**: Core engine is dependency-free; AI/ML features are fully optional.
 
-## Modularity & Resource Usage
-F.O.R.G.E. is designed to be highly modular. While it supports advanced AI features like Local LLM analysis and semantic search, **these are entirely optional**. 
+## Installation
+The core tool requires minimal dependencies. You can install AI/ML capabilities as needed.
 
-The core organization engine functions perfectly with zero dependencies beyond standard Python, making it ideal for low-resource environments. You can install the base tool with `pip install typer rich watchdog` and add AI capabilities only if and when you need them.
+```bash
+# Install core
+pip install file-organizer
 
-# Install core dependencies
-pip install typer rich watchdog scikit-learn joblib
+# Install with ML (Classifier)
+pip install file-organizer[ml]
 
-# Optional: Install AI/Search dependencies
-pip install sentence-transformers faiss-cpu ollama pytesseract PyPDF2
+# Install with AI/Search (LLM, OCR, Vectors)
+pip install file-organizer[ai]
 
-# Run the project
-forge --help
+# Install everything
+pip install file-organizer[full]
 ```
 
-## Folder Structure
-```text
-/
-├── config/         # JSON categories and user settings
-├── history/        # Transaction logs for undo support
-├── logs/           # Application execution logs
-├── models/         # Trained ML classifier models
-├── src/            # Core engine source code
-│   ├── classifier.py     # Deterministic file matching logic
-│   ├── config_loader.py  # Configuration environment loader
-│   ├── llm.py            # Local LLM and OCR integration
-│   ├── logger.py         # Silent file-based logging
-│   ├── main.py           # CLI entrypoint and orchestration
-│   ├── ml.py             # ML pipeline and training
-│   ├── organizer.py      # Core execution pipeline
-│   ├── search.py         # Vector search and indexing
-│   ├── utils.py          # UI helpers and file utilities
-│   └── watcher.py        # Real-time monitoring service
-└── tests/          # Integration and performance tests
-```
+## Compatibility Matrix
+| Feature | Windows | macOS | Linux |
+|---------|:-------:|:-----:|:-----:|
+| Core organize | ✅ | ✅ | ✅ |
+| File watcher | ✅ | ✅ | ✅ |
+| OCR rename | ✅ | ✅ | ✅ |
+| Semantic search | ✅ | ✅ | ✅ |
+| Ollama LLM | ✅ | ✅ | ✅ |
 
-## Challenges & Lessons Learned
-- **The "Download Stability" Problem**: Early versions tried to move files while they were still being downloaded by the browser. 
-    - **Solution**: Implemented a debounced event handler that waits for the file size to remain stable for 3 seconds before processing.
-- **LLM Performance Trade-offs**: Content analysis is expensive. 
-    - **Solution**: Designed a tiered categorization strategy where AI is only invoked for ambiguous files or when explicitly requested, keeping the default experience near-instant.
-- **Dependency Isolation**: Some users don't need ML or AI features.
-    - **Lesson**: Used lazy imports and robust `ImportError` handling to ensure the core CLI remains functional even if heavy libraries like Scikit-learn or FAISS aren't installed.
+## Architecture
+```mermaid
+graph LR
+    Watcher --> Debounce
+    Debounce --> Classifier
+    Classifier --> AI_Override
+    Classifier --> ML_Model
+    Classifier --> Extension_Rules
+    AI_Override & ML_Model & Extension_Rules --> Organizer
+    Organizer --> Search_Index
+    Organizer --> History_Log
+```
 
 ## Why I Built This
-I built F.O.R.G.E. because my local filesystem had become a "black hole" where data went to die. Traditional search tools were too slow, and manual organization was a chore I always skipped. I wanted a tool that didn't just move files, but actually *understood* them, giving me a clean workspace and the ability to find a document I haven't seen in months using only my memory of what it was about.
+My local filesystem had become a "black hole" where data went to die. Traditional search tools were too slow, and manual organization was a chore I always skipped. I wanted a tool that understood my files, gave me a clean workspace, and enabled me to find documents using natural language instead of cryptic folder hierarchies.
 
-## Future Improvements
-- [ ] System tray integration for the Watchdog service.
-- [ ] Web-based dashboard for viewing file analytics and editing categories.
-- [ ] Support for cloud storage providers (S3/Drive) as targets or destinations.
-
-## Author
-**Jay**
-[GitHub Profile](https://github.com/c4nt5er3d)
- 
+## License
+MIT
