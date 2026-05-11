@@ -12,7 +12,7 @@ from rich.text import Text
 # Add the parent directory to the Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.logger import setup_logging
+from src.log_utils import setup_logging
 from src.config_loader import load_all_configs
 from src.utils import undo_last, print_ascii_banner
 from src.organizer import organize
