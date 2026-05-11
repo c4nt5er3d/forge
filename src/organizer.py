@@ -15,6 +15,14 @@ except ImportError:
 
 console = Console()
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def _analyze_file(file, local_llm, categories, use_ai, ai_rename):
+    if local_llm is None:
+        return file, None, None
+    cat_guess, new_name = local_llm.analyze_and_rename(file, list(categories.keys()))
+    return file, cat_guess if use_ai else None, new_name if ai_rename else None
+
 def organize(
     target: Path, 
     destination: Path, 
@@ -59,6 +67,15 @@ def organize(
     ml_classifier = MLClassifier() if MLClassifier is not None else None
     local_llm = LocalLLM(use_ollama=use_ollama) if (LocalLLM is not None and (use_ai or ai_rename)) else None
 
+    ai_results = {}
+    if local_llm is not None:
+        console.print("  [#e8550a]›[/#e8550a] [#5bc8f5]Analyzing files with AI (parallel)...[/#5bc8f5]")
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(_analyze_file, f, local_llm, categories, use_ai, ai_rename): f for f in files}
+            for future in as_completed(futures):
+                file, cat, name = future.result()
+                ai_results[file] = (cat, name)
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -84,17 +101,7 @@ def organize(
                 continue
 
             # AI Logic: Attempts to infer category/name from file content.
-            # This is significantly slower than extension matching but more accurate for mixed folders.
-            override_cat = None
-            dest_name = file.name
-            
-            if local_llm is not None:
-                progress.console.print(f"  [#e8550a]›[/#e8550a] [dim]AI analyzing {file.name}...[/dim]")
-                cat_guess, new_name = local_llm.analyze_and_rename(file, list(categories.keys()))
-                if use_ai and cat_guess:
-                    override_cat = cat_guess
-                if ai_rename and new_name:
-                    dest_name = new_name
+            override_cat, dest_name = ai_results.get(file, (None, file.name))
 
             if rename_only:
                 # rename_only keeps files in their original directory.
