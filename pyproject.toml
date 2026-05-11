@@ -10,9 +10,31 @@ authors = [{name = "Jay"}]
 dependencies = [
     "typer",
     "rich",
-    "watchdog",
+    "watchdog"
+]
+
+[project.optional-dependencies]
+ml = [
     "scikit-learn",
     "joblib"
+]
+ai = [
+    "sentence-transformers",
+    "faiss-cpu",
+    "ollama",
+    "pytesseract",
+    "Pillow",
+    "PyPDF2"
+]
+full = [
+    "scikit-learn",
+    "joblib",
+    "sentence-transformers",
+    "faiss-cpu",
+    "ollama",
+    "pytesseract",
+    "Pillow",
+    "PyPDF2"
 ]
 
 [project.scripts]

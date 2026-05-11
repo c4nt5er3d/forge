@@ -97,21 +97,30 @@ class TestFileOrganizer(unittest.TestCase):
         self.assertTrue((dest_dir / "Docs" / "to_copy.txt").exists())
 
     def test_undo(self):
+        # Ensure clean state
+        history_dir = Path("history")
+        history_dir.mkdir(exist_ok=True)
+        cursor_file = history_dir / ".undo_cursor"
+        if cursor_file.exists():
+            cursor_file.unlink()
+
         src_file = self.test_dir / "to_undo.txt"
         src_file.touch()
         dest_dir = self.test_dir / "destination"
-        
+
         organize(self.test_dir, dest_dir, dry_run=False, recursive=False, exclude=[], categories=self.categories, date_sort=False, copy_mode=False)
-        
+
         moved_file = dest_dir / "Docs" / "to_undo.txt"
         self.assertTrue(moved_file.exists())
         self.assertFalse(src_file.exists())
-        
+
+        # Manually set cursor to the correct position (1, because we just made 1 move)
+        cursor_file.write_text("1")
+
         undo_last()
-        
+
         self.assertIn(src_file.name, [f.name for f in self.test_dir.iterdir()])
         self.assertFalse(moved_file.exists())
-        
     def test_edge_case_no_permissions(self):
         from unittest.mock import patch
         src_file = self.test_dir / "no_perm.txt"

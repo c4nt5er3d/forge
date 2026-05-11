@@ -122,15 +122,20 @@ def undo_last() -> None:
 
     # Track cursor
     if cursor_file.exists():
-        cursor = int(cursor_file.read_text().strip())
+        try:
+            cursor = int(cursor_file.read_text().strip())
+        except ValueError:
+            cursor = len(logs)
     else:
         cursor = len(logs)
     
-    if cursor == 0:
+    if cursor <= 0:
         console.print("  [yellow]Nothing left to undo.[/yellow]")
         return
         
     cursor -= 1
+    if cursor >= len(logs):
+        cursor = len(logs) - 1
     last_log: Path = logs[cursor]
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]undoing operation:[/#888888] [#ffffff]{last_log.name}[/#ffffff]\n")
 
@@ -153,6 +158,8 @@ def undo_last() -> None:
                     shutil.move(str(dest), str(src))
                     console.print(f"    [dim]Restored: {src.name}[/dim]")
                     undone_count += 1
+                else:
+                    console.print(f"    [dim]File not found at destination: {dest.name}[/dim]")
             elif action == "copy":
                 if dest.exists():
                     dest.unlink()
