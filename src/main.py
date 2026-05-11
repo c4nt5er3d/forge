@@ -262,9 +262,9 @@ def search_command(
             
         console.print(f"\n  [#444444]TOP {len(results)} MATCHES[/#444444]\n")
         for metadata, distance in results:
-            # lower L2 distance is better
-            match_strength = max(0, 100 - (distance * 50)) 
-            console.print(f"  [#e8550a]›[/#e8550a] [#f5a623]{metadata['name']}[/#f5a623] [#888888](Score: {match_strength:.1f})[/#888888]")
+            # Cosine similarity = 1 - (L2_distance² / 2)
+            cosine_sim = max(0, 1 - (distance ** 2) / 2)
+            console.print(f"  [#e8550a]›[/#e8550a] [#f5a623]{metadata['name']}[/#f5a623] [#888888](Score: {cosine_sim:.2f})[/#888888]")
             console.print(f"    [#5bc8f5]Path:[/#5bc8f5] [#ffffff]{metadata['path']}[/#ffffff]")
             snippet_panel = Panel(
                 Text(f"\"{metadata['snippet']}\"", style="dim"),

@@ -120,6 +120,8 @@ class SemanticSearch:
             # Embeddings turn human language into a vector space where 
             # 'meaning' is represented by spatial proximity.
             embedding = self.model.encode([text])[0]
+            # Normalize for cosine similarity calculation
+            embedding = embedding / np.linalg.norm(embedding)
             new_embeddings.append(embedding)
             
             # Vector stores only save IDs; we must persist our own metadata 

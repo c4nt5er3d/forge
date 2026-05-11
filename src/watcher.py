@@ -54,6 +54,8 @@ class StableFileHandler(FileSystemEventHandler):
     def _add_file(self, file_path: Path) -> None:
         if file_path.name.startswith("."):
             return  # Skip hidden files
+        if ".git" in file_path.parts:
+            return  # Skip git internals
         if file_path.suffix.lower() in self.excluded:
             return  # Skip excluded pattern-based ignores
         if file_path.suffix.lower() in self.temp_extensions:
