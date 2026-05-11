@@ -15,7 +15,7 @@ It is built for messy folders like Downloads: inspect what will happen, move or 
 ## Quickstart
 
 ```bash
-git clone <https://github.com/c4nt5er3d/forge>
+git clone https://github.com/c4nt5er3d/forge
 cd file_organizer
 python3 -m venv .venv
 source .venv/bin/activate
