@@ -98,6 +98,7 @@ def save_history(operations: List[Dict[str, str]], action_type: str) -> None:
     data: Dict[str, Any] = {
         "timestamp": timestamp,
         "action": action_type,
+        "status": "active",
         "operations": operations
     }
     
@@ -107,40 +108,30 @@ def save_history(operations: List[Dict[str, str]], action_type: str) -> None:
     logging.info(f"Transaction log saved: {history_file.name}")
 
 def undo_last() -> None:
-    # Reverses the most recent file operations by reading the latest history log.
+    # Reverses the most recent file operations by finding the latest 'active' history log.
     history_dir: Path = Path(__file__).parent.parent / "history"
-    cursor_file = history_dir / ".undo_cursor"
-    
     if not history_dir.exists():
         console.print("  [bold red]Error:[/bold red] No history directory found.")
         return
 
     logs: List[Path] = sorted(history_dir.glob("history_*.json"))
-    if not logs:
-        console.print("  [yellow]Error:[/yellow] No history logs found.")
-        return
-
-    # Track cursor
-    if cursor_file.exists():
-        try:
-            cursor = int(cursor_file.read_text().strip())
-        except ValueError:
-            cursor = len(logs)
-    else:
-        cursor = len(logs)
     
-    if cursor <= 0:
+    # Find the latest active log
+    target_log = None
+    data = None
+    for log in reversed(logs):
+        with open(log, "r") as f:
+            temp_data = json.load(f)
+            if temp_data.get("status") == "active":
+                target_log = log
+                data = temp_data
+                break
+    
+    if not target_log:
         console.print("  [yellow]Nothing left to undo.[/yellow]")
         return
         
-    cursor -= 1
-    if cursor >= len(logs):
-        cursor = len(logs) - 1
-    last_log: Path = logs[cursor]
-    console.print(f"  [#e8550a]›[/#e8550a] [#888888]undoing operation:[/#888888] [#ffffff]{last_log.name}[/#ffffff]\n")
-
-    with open(last_log, "r") as f:
-        data: Dict[str, Any] = json.load(f)
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]undoing operation:[/#888888] [#ffffff]{target_log.name}[/#ffffff]\n")
 
     action: str = data["action"]
     operations: List[Dict[str, str]] = data["operations"]
@@ -168,5 +159,9 @@ def undo_last() -> None:
         except Exception as e:
             console.print(f"    [bold red]Failed to revert {dest.name}:[/bold red] [red]{e}[/red]")
 
-    cursor_file.write_text(str(cursor))
+    # Mark as undone
+    data["status"] = "undone"
+    with open(target_log, "w") as f:
+        json.dump(data, f, indent=4)
+        
     console.print(f"\n  [#e8550a]›[/#e8550a] [#28c840]Undo finished![/#28c840] [#ffffff]{undone_count}[/#ffffff] files reverted.\n")
