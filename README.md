@@ -63,11 +63,13 @@ docs/demo/forge-undo.png
 docs/demo/forge-demo.gif
 ```
 
-Demo placeholders (replace once recorded):
 
 ![FORGE Preview](docs/demo/forge-preview.png)
+
 ![FORGE Organize](docs/demo/forge-organize.png)
+
 ![FORGE Undo](docs/demo/forge-undo.png)
+
 ![FORGE Demo GIF](docs/demo/forge-demo.gif)
 
 ## Features
@@ -198,7 +200,7 @@ python -m pytest tests/
 ## Final Fresh-Clone Test
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/c4nt5er3d/forge
 cd file_organizer
 python3 -m venv .venv
 source .venv/bin/activate
