@@ -23,6 +23,7 @@ The current branch includes:
 - Phase 3C token-aware context packs
 - Phase 3D dataset command
 - Evaluation layer: forge evaluate
+- Serve layer: local HTTP API
 
 The project remains local-first. Core behavior does not require cloud APIs or paid services.
 
@@ -350,6 +351,39 @@ What it does:
 - Writes JSON reports by default or Markdown with `--format markdown`.
 - Can evaluate reranked or compressed search behavior with `--rerank` and `--compress`.
 
+### Local HTTP API
+
+Command:
+
+```bash
+forge serve --host 127.0.0.1 --port 8765 --allow-root /path/to/workspace
+```
+
+Optional dependency install:
+
+```bash
+python3 -m pip install -e ".[server]"
+```
+
+Endpoints:
+
+```text
+GET  /health
+POST /search
+POST /pack
+POST /dataset
+POST /evaluate
+```
+
+What it does:
+
+- Starts a localhost FastAPI app through `uvicorn`.
+- Keeps server dependencies optional under the `server` extra.
+- Uses a testable `ForgeService` layer so endpoint behavior is not trapped inside HTTP handlers.
+- Restricts API file paths to configured `--allow-root` directories.
+- Reuses existing search, pack, dataset, and evaluate modules.
+- Does not expose cloud features or require API keys.
+
 ## Key Files
 
 Pipeline:
@@ -379,6 +413,7 @@ src/exporters/base.py
 src/dataset.py
 src/evaluate.py
 src/pack.py
+src/server.py
 src/transform/engine.py
 src/transform/templates/summary.yaml
 src/transform/templates/flashcards.yaml
@@ -401,6 +436,7 @@ tests/test_export_transform.py
 tests/test_dataset.py
 tests/test_evaluate.py
 tests/test_pack.py
+tests/test_server.py
 ```
 
 ## Testing
@@ -488,12 +524,13 @@ Phase 3B: Template transform engine
 Phase 3C: Token-aware context packs
 Phase 3D: Dataset command
 Evaluation layer: forge evaluate
+Serve layer: local HTTP API
 ```
 
 Next likely roadmap items:
 
 ```text
-Serve / MCP
+MCP adapter
 Later: ChromaDB migration if FAISS metadata/upsert becomes painful
 Much later: Forge Brain / LoRA fine-tuning
 ```
@@ -527,5 +564,5 @@ Exports:
 ## Suggested Next Work
 
 1. Push latest commits if not already pushed.
-2. Add MCP/server only after export/pack/evaluate are stable.
+2. Add MCP adapter on top of the `ForgeService` layer.
 3. Consider ChromaDB only if FAISS metadata/upsert behavior becomes painful.

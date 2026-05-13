@@ -641,6 +641,42 @@ def evaluate_command(
         f"[#ffffff]{output_path}[/#ffffff]"
     )
 
+@app.command(name="serve")
+def serve_command(
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host"),
+    port: int = typer.Option(8765, "--port", "-p", help="Bind port"),
+    allow_root: Optional[List[Path]] = typer.Option(None, "--allow-root", help="Allowed file root for API paths"),
+    reload: bool = typer.Option(False, "--reload", help="Enable uvicorn reload")
+) -> None:
+    """Start the local FORGE HTTP API."""
+    setup_logging()
+    if host not in {"127.0.0.1", "localhost", "::1"}:
+        console.print("  [yellow]Warning:[/yellow] forge serve is intended for local use. Prefer 127.0.0.1.")
+
+    try:
+        import uvicorn
+        from src.server import ForgeService, create_app
+    except ImportError as e:
+        console.print(
+            "  [bold red]Serve failed:[/bold red] "
+            "[red]Install server dependencies with `python3 -m pip install -e '.[server]'`.[/red]"
+        )
+        console.print(f"  [dim]{e}[/dim]")
+        raise typer.Exit(1)
+
+    roots = allow_root or [Path.cwd()]
+    service = ForgeService(allowed_roots=roots)
+    api = create_app(service)
+    console.print(
+        f"  [#e8550a]›[/#e8550a] [#28c840]Serving FORGE:[/#28c840] "
+        f"[#ffffff]http://{host}:{port}[/#ffffff]"
+    )
+    console.print(
+        "  [#e8550a]›[/#e8550a] [#888888]allowed roots:[/#888888] "
+        + ", ".join(str(root.resolve()) for root in roots)
+    )
+    uvicorn.run(api, host=host, port=port, reload=reload)
+
 @template_app.command(name="list")
 def template_list_command() -> None:
     """List installed local transform templates."""

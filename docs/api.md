@@ -15,6 +15,7 @@ Public commands use positional paths:
 * `forge dataset <target> [--format jsonl|csv|markdown|parquet|rag] [--dedup/--no-dedup] [--semantic] [--output PATH]`
 * `forge dataset --from-jsonl docs.jsonl [--format jsonl|csv|markdown|parquet|rag] [--output PATH]`
 * `forge evaluate eval_cases.json [--limit N] [--format json|markdown] [--output PATH]`
+* `forge serve [--host 127.0.0.1] [--port 8765] [--allow-root PATH]`
 * `forge undo [--preview] [--steps N]`
 
 The hidden `forge run` command remains available for older option-style scripts.
@@ -80,6 +81,14 @@ Scores retrieval quality against local benchmark cases.
   Runs search and computes hit count, hit rate, and mean reciprocal rank.
 * `write_evaluation_report(report: EvaluationReport, output: Path, output_format: str = "json") -> None`
   Writes JSON or Markdown reports.
+
+### `src.server`
+Provides the optional local HTTP API behind `forge serve`.
+
+* `ForgeService(allowed_roots: Optional[Iterable[Path]] = None, searcher_factory: Optional[Callable[[str], Any]] = None)`
+  Testable service layer for health, search, pack, dataset, and evaluate operations with path allow-root checks.
+* `create_app(service: Optional[ForgeService] = None)`
+  Builds a FastAPI app when optional server dependencies are installed.
 
 ### `src.utils`
 Utility and transaction history functions.

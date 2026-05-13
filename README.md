@@ -85,6 +85,7 @@ docs/demo/forge-demo.gif
 - **Context packs**: Build token-aware local bundles for AI prompts from folders or existing JSONL.
 - **Dataset builds**: Compose ingest, chunking, deduplication, and export into one local command.
 - **Retrieval evaluation**: Score local search quality with JSON/JSONL benchmark cases.
+- **Local HTTP API**: Serve search, pack, dataset, and evaluation workflows on localhost.
 - **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
@@ -149,6 +150,9 @@ forge dataset --from-jsonl docs.jsonl --format markdown --output dataset.md
 forge evaluate eval_cases.json --output evaluation.json --limit 5
 forge evaluate eval_cases.jsonl --format markdown --output evaluation.md
 
+# Start local HTTP API
+forge serve --allow-root /path/to/workspace
+
 # Apply local YAML templates
 forge template list
 forge transform --from-jsonl docs.jsonl --template summary --output summary.jsonl
@@ -186,6 +190,22 @@ Exact deduplication is enabled by default. Add `--no-dedup` to preserve every us
 `forge evaluate` runs local search against JSON or JSONL benchmark cases and reports hit rate plus mean reciprocal rank. Each case needs a `query` and an `expected` object, such as `{"filename": "budget.txt"}`, `{"path": "budget"}`, `{"document_id": "..."}`, `{"chunk_id": "..."}`, or `{"contains": "payroll"}`.
 
 Reports can be written as JSON or Markdown. Evaluation uses the local FAISS index; run `forge index` first.
+
+## Local API
+
+`forge serve` starts a localhost HTTP API for programmatic access to Forge workflows. It binds to `127.0.0.1` by default and only allows file paths under configured `--allow-root` directories. Install optional server dependencies first:
+
+```bash
+python3 -m pip install -e ".[server]"
+```
+
+Available endpoints:
+
+- `GET /health`
+- `POST /search`
+- `POST /pack`
+- `POST /dataset`
+- `POST /evaluate`
 
 ## Optional AI
 

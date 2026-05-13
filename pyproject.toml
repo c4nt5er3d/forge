@@ -33,6 +33,10 @@ ai = [
     "PyPDF2",
     "pyarrow"
 ]
+server = [
+    "fastapi",
+    "uvicorn"
+]
 full = [
     "scikit-learn",
     "joblib",
@@ -44,7 +48,9 @@ full = [
     "pytesseract",
     "Pillow",
     "PyPDF2",
-    "pyarrow"
+    "pyarrow",
+    "fastapi",
+    "uvicorn"
 ]
 dev = [
     "pytest",
@@ -59,7 +65,9 @@ dev = [
     "pytesseract",
     "Pillow",
     "PyPDF2",
-    "pyarrow"
+    "pyarrow",
+    "fastapi",
+    "uvicorn"
 ]
 
 [tool.ruff]
