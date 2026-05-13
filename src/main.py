@@ -58,6 +58,12 @@ def _default_pack_output(pack_format: str) -> Path:
         return Path("context_pack.jsonl")
     return Path("context_pack.md")
 
+
+def _default_dataset_output(dataset_format: str) -> Path:
+    if dataset_format == "rag":
+        return Path("dataset_bundle")
+    return Path(f"dataset.{dataset_format}")
+
 def _run_organize(
     target: Optional[str],
     destination: Optional[str],
@@ -519,6 +525,68 @@ def pack_command(
         f"[#ffffff]{len(pack.entries)}[/#ffffff] chunks, "
         f"[#ffffff]{pack.estimated_tokens}/{pack.available_tokens}[/#ffffff] estimated tokens -> "
         f"[#ffffff]{output_path}[/#ffffff]"
+    )
+
+@app.command(name="dataset")
+def dataset_command(
+    target: Optional[Path] = typer.Argument(None, help="File or folder to turn into a dataset"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Dataset output path"),
+    from_jsonl: Optional[Path] = typer.Option(None, "--from-jsonl", help="Build from existing Document JSONL"),
+    dataset_format: str = typer.Option("jsonl", "--format", "-f", help="jsonl, csv, markdown, parquet, or rag"),
+    dedup: bool = typer.Option(True, "--dedup/--no-dedup", help="Remove exact duplicate document content"),
+    semantic: bool = typer.Option(False, "--semantic", help="Use optional local embeddings for near-duplicate removal"),
+    threshold: float = typer.Option(0.97, "--threshold", help="Semantic duplicate cosine threshold"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy for folder datasets"),
+    manifest: bool = typer.Option(True, "--manifest/--no-manifest", help="Write a dataset manifest next to the output")
+) -> None:
+    """Build a cleaned, deduplicated local dataset export."""
+    setup_logging()
+    if target is None and from_jsonl is None:
+        console.print("  [bold red]Error:[/bold red] Provide a file/folder or --from-jsonl.")
+        raise typer.Exit(1)
+    if target is not None and not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+    if from_jsonl is not None and not from_jsonl.exists():
+        console.print(f"  [bold red]Error:[/bold red] JSONL file does not exist: {from_jsonl}")
+        raise typer.Exit(1)
+    if semantic and not dedup:
+        console.print("  [yellow]--semantic requires deduplication. Use --dedup or omit --no-dedup.[/yellow]")
+        raise typer.Exit(1)
+
+    from src.dataset import write_dataset
+    from src.exporters import load_documents
+
+    output_path = output or _default_dataset_output(dataset_format)
+    try:
+        documents = load_documents(
+            target=target,
+            from_jsonl=from_jsonl,
+            recursive=recursive,
+            chunk_strategy=chunk_strategy,
+        )
+        result = write_dataset(
+            documents,
+            output_path,
+            export_format=dataset_format,
+            dedup=dedup,
+            semantic=semantic,
+            threshold=threshold,
+            write_manifest=manifest,
+        )
+    except Exception as e:
+        console.print(f"  [bold red]Dataset failed:[/bold red] [red]{e}[/red]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"  [#e8550a]›[/#e8550a] [#28c840]Dataset complete:[/#28c840] "
+        f"[#ffffff]{result.output_count}[/#ffffff] documents -> [#ffffff]{output_path}[/#ffffff]"
+    )
+    console.print(
+        f"  [#e8550a]›[/#e8550a] [#888888]duplicates removed:[/#888888] "
+        f"[#ffffff]{result.duplicate_count}[/#ffffff]  "
+        f"[#888888]extraction errors skipped:[/#888888] [#ffffff]{result.skipped_error_count}[/#ffffff]"
     )
 
 @template_app.command(name="list")

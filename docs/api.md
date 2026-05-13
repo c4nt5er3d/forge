@@ -12,6 +12,8 @@ Public commands use positional paths:
 * `forge search "<query>" [--limit N]`
 * `forge pack <target> [--output PATH] [--token-budget N] [--reserve-tokens N] [--query TEXT]`
 * `forge pack --from-jsonl docs.jsonl [--format markdown|jsonl] [--output PATH]`
+* `forge dataset <target> [--format jsonl|csv|markdown|parquet|rag] [--dedup/--no-dedup] [--semantic] [--output PATH]`
+* `forge dataset --from-jsonl docs.jsonl [--format jsonl|csv|markdown|parquet|rag] [--output PATH]`
 * `forge undo [--preview] [--steps N]`
 
 The hidden `forge run` command remains available for older option-style scripts.
@@ -59,6 +61,14 @@ Builds token-aware context bundles from `Document` records.
   Selects chunks under the available token budget. When `query` is provided, matching chunks and tags are prioritized.
 * `write_context_pack(pack: ContextPack, output: Path, output_format: str = "markdown") -> None`
   Writes Markdown or JSONL context pack output locally.
+
+### `src.dataset`
+Composes loaded `Document` records into cleaned dataset exports.
+
+* `prepare_dataset_documents(documents: Iterable[Document], dedup: bool = True, semantic: bool = False, threshold: float = 0.97) -> tuple[List[Document], DatasetResult]`
+  Drops extraction failures and removes exact or optional semantic duplicates.
+* `write_dataset(documents: Iterable[Document], output: Path, export_format: str = "jsonl", dedup: bool = True, semantic: bool = False, threshold: float = 0.97, write_manifest: bool = True) -> DatasetResult`
+  Exports the prepared documents and writes a dataset manifest when enabled.
 
 ### `src.utils`
 Utility and transaction history functions.

@@ -83,6 +83,7 @@ docs/demo/forge-demo.gif
 - **Document ingest**: Extract files into JSONL `Document` records with chunks, quality scores, and explicit extraction errors.
 - **Hybrid retrieval**: Search fuses FAISS dense retrieval with BM25-style lexical matching.
 - **Context packs**: Build token-aware local bundles for AI prompts from folders or existing JSONL.
+- **Dataset builds**: Compose ingest, chunking, deduplication, and export into one local command.
 - **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
@@ -138,6 +139,11 @@ forge pack <folder> --output context_pack.md --token-budget 8000 --recursive
 forge pack --from-jsonl docs.jsonl --query "budget approvals" --output context_pack.md
 forge pack --from-jsonl docs.jsonl --format jsonl --output context_pack.jsonl
 
+# Build cleaned local datasets
+forge dataset <folder> --output dataset.jsonl --recursive
+forge dataset <folder> --format rag --output dataset_bundle --dedup
+forge dataset --from-jsonl docs.jsonl --format markdown --output dataset.md
+
 # Apply local YAML templates
 forge template list
 forge transform --from-jsonl docs.jsonl --template summary --output summary.jsonl
@@ -163,6 +169,12 @@ Optional Phase 2 intelligence features stay local-first: `forge clean --dupes --
 `forge pack` builds a local, token-aware context bundle for AI workflows. It accepts a file/folder or existing Document JSONL, skips extraction failures, estimates tokens without a cloud tokenizer, and keeps output under the requested budget while reserving space for instructions and model output.
 
 By default it writes Markdown with a JSON manifest, source list, and selected chunks. Add `--query` to prioritize chunks that match a task or question, or `--format jsonl` for machine-readable pack records.
+
+## Datasets
+
+`forge dataset` is a composed local workflow: ingest or load Document JSONL, drop extraction failures, optionally deduplicate, and export to JSONL, CSV, Markdown, optional Parquet, or a RAG bundle. It writes a small manifest next to the dataset by default.
+
+Exact deduplication is enabled by default. Add `--no-dedup` to preserve every usable record, or `--semantic` to use optional local embeddings for near-duplicate removal.
 
 ## Optional AI
 

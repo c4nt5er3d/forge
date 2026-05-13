@@ -21,6 +21,7 @@ The current branch includes:
 - Phase 3A exporters
 - Phase 3B YAML template transform engine
 - Phase 3C token-aware context packs
+- Phase 3D dataset command
 
 The project remains local-first. Core behavior does not require cloud APIs or paid services.
 
@@ -295,6 +296,28 @@ What it does:
 - Supports `--query` to prioritize chunks relevant to a task or question.
 - Supports machine-readable `jsonl` output.
 
+### Dataset Builder
+
+Commands:
+
+```bash
+forge dataset <folder> --output dataset.jsonl --recursive
+forge dataset <folder> --format rag --output dataset_bundle --dedup
+forge dataset --from-jsonl docs.jsonl --format markdown --output dataset.md
+forge dataset --from-jsonl docs.jsonl --no-dedup --output full_dataset.jsonl
+```
+
+What it does:
+
+- Composes the existing local pipeline instead of adding a separate extraction path.
+- Loads from a file/folder or existing Document JSONL.
+- Drops extraction failures from the final dataset.
+- Runs exact content deduplication by default.
+- Supports `--no-dedup` when every usable record should be preserved.
+- Supports optional local semantic deduplication with `--semantic`.
+- Exports through the existing exporter formats: `jsonl`, `csv`, `markdown`, `rag`, and optional `parquet`.
+- Writes a dataset manifest by default unless `--no-manifest` is passed.
+
 ## Key Files
 
 Pipeline:
@@ -321,6 +344,7 @@ Export and transform:
 
 ```text
 src/exporters/base.py
+src/dataset.py
 src/pack.py
 src/transform/engine.py
 src/transform/templates/summary.yaml
@@ -341,6 +365,7 @@ tests/test_ai_components.py
 tests/test_intelligence.py
 tests/test_integration.py
 tests/test_export_transform.py
+tests/test_dataset.py
 tests/test_pack.py
 ```
 
@@ -427,12 +452,12 @@ Phase 2E: Context compression
 Phase 3A: Exporters
 Phase 3B: Template transform engine
 Phase 3C: Token-aware context packs
+Phase 3D: Dataset command
 ```
 
 Next likely roadmap items:
 
 ```text
-Phase 3D: Dataset command
 Evaluation layer: forge evaluate
 Serve / MCP
 Later: ChromaDB migration if FAISS metadata/upsert becomes painful
@@ -468,11 +493,5 @@ Exports:
 ## Suggested Next Work
 
 1. Push latest commits if not already pushed.
-2. Add `forge dataset` as a composed command:
-
-```text
-ingest -> chunk -> dedup -> export
-```
-
-3. Add `forge evaluate` for retrieval quality benchmarks.
-4. Add MCP/server only after export/pack/evaluate are stable.
+2. Add `forge evaluate` for retrieval quality benchmarks.
+3. Add MCP/server only after export/pack/evaluate are stable.
