@@ -20,7 +20,7 @@ def print_ascii_banner() -> None:
   ██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗
   ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝"""
     console.print(f"[#e8550a]{ascii_art}[/#e8550a]")
-    console.print("  [#888888]    FILE ORGANIZATION & RETRIEVAL GENERATION ENGINE[/#888888]\n")
+    console.print("  [#888888]    LOCAL DOCUMENT INTELLIGENCE ENGINE[/#888888]\n")
 
 def print_custom_help() -> None:
     # Custom themed help screen that overrides the default Typer help.
@@ -31,30 +31,52 @@ def print_custom_help() -> None:
     console.print("  [#5bc8f5] Tip:[/#5bc8f5] Use [#f5a623]--help[/#f5a623] with any command for detailed options\n")
     
     console.print("  [#2a2a2a]────────────────────────────────────────────────────────────[/#2a2a2a]")
-    console.print("\n  [#444444]COMMANDS[/#444444]\n")
-    
-    commands = [
-        ("organize", "--smart", "Organize files intelligently"),
-        ("rename", "--smart", "Smart rename files in-place"),
-        ("copy", "", "Copy and organize files"),
-        ("search", '"query"', "Semantic file search"),
-        ("watch", "", "Real-time folder monitoring"),
-        ("undo", "", "Revert last operation"),
-        ("train", "", "Train ML classifier"),
-        ("index", "", "Index files for search"),
+
+    sections = [
+        (
+            "FILES",
+            [
+                ("organize", "<source> <dest> --preview", "Preview-safe cleanup"),
+                ("rename", "<folder> --preview", "Quality-gated smart names"),
+            ],
+        ),
+        (
+            "PIPELINE",
+            [
+                ("ingest", "<folder> --output docs.jsonl", "Document JSONL"),
+                ("index", "<folder>", "Chunk search index"),
+                ("search", '"query"', "Hybrid retrieval"),
+            ],
+        ),
+        (
+            "CONTEXT",
+            [
+                ("pack", "--from-jsonl docs.jsonl", "Token-aware bundles"),
+                ("dataset", "<folder> --output dataset.jsonl", "Clean dataset export"),
+                ("evaluate", "eval_cases.json", "Retrieval benchmarks"),
+            ],
+        ),
+        (
+            "INTEGRATE",
+            [
+                ("serve", "--allow-root <path>", "Local HTTP API"),
+                ("mcp", "--allow-root <path>", "MCP stdio tools"),
+            ],
+        ),
     ]
-    
-    for cmd, flag, desc in commands:
-        prompt = "[#e8550a]›[/#e8550a]"
-        name = "[#f5a623]forge[/#f5a623]"
-        sub = f"[#ffffff]{cmd}[/#ffffff]"
-        flag_str = f" [#5bc8f5]{flag}[/#5bc8f5]" if flag else ""
-        description = f"[#555555]// {desc}[/#555555]"
-        
-        console.print(f"  {prompt} {name} {sub}{flag_str} {description}")
+
+    for title, commands in sections:
+        console.print(f"\n  [#444444]{title}[/#444444]\n")
+        for cmd, args, desc in commands:
+            prompt = "[#e8550a]›[/#e8550a]"
+            name = "[#f5a623]forge[/#f5a623]"
+            sub = f"[#ffffff]{cmd}[/#ffffff]"
+            arg_str = f" [#5bc8f5]{args}[/#5bc8f5]" if args else ""
+            description = f"[#555555]// {desc}[/#555555]"
+            console.print(f"  {prompt} {name} {sub}{arg_str} {description}")
         
     console.print("\n  [#1e1e1e]────────────────────────────────────────────────────────────[/#1e1e1e]")
-    console.print("  [#555555]v0.1.0  ·  python 3.10+  ·  built by[/#555555] [#e8550a]jay[/#e8550a]\n")
+    console.print("  [#555555]v0.2.0  ·  python 3.10+  ·  built by[/#555555] [#e8550a]jay[/#e8550a]\n")
     console.print("  [#1a1a1a]╰──────────────────────────────────────────────────────────╯[/#1a1a1a]\n")
 
 def resolve_collision(destination: Path) -> Path:

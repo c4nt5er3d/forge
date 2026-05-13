@@ -161,7 +161,7 @@ def create_app(service: Optional[ForgeService] = None):
         raise ImportError("fastapi is required for forge serve. Install with file-organizer server extra.") from exc
 
     service = service or ForgeService()
-    app = FastAPI(title="FORGE Local API", version="0.1.0")
+    app = FastAPI(title="FORGE Local API", version="0.2.0")
 
     class SearchRequest(BaseModel):
         query: str

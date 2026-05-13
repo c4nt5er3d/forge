@@ -181,5 +181,28 @@ def test_watch_command_loads_categories_and_starts_watcher(tmp_path):
     assert "Documents" in args[3]
     assert kwargs["recursive"] is False
 
+
+def test_custom_landing_page_shows_current_version_and_groups():
+    runner = CliRunner()
+
+    result = runner.invoke(app, [])
+
+    assert result.exit_code == 0
+    assert "LOCAL DOCUMENT INTELLIGENCE ENGINE" in result.output
+    assert "v0.2.0" in result.output
+    assert "PIPELINE" in result.output
+    assert "CONTEXT" in result.output
+    assert "INTEGRATE" in result.output
+
+
+def test_custom_landing_page_lists_current_high_value_commands():
+    runner = CliRunner()
+
+    result = runner.invoke(app, [])
+
+    assert result.exit_code == 0
+    for command in ["ingest", "index", "search", "pack", "dataset", "evaluate", "serve", "mcp"]:
+        assert command in result.output
+
 if __name__ == "__main__":
     unittest.main()

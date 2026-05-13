@@ -8,6 +8,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+## [0.2.0] - 2026-05-13
+
+### Added
 - Phase 1 document pipeline with `Document` JSONL schema, chunking, validation, and SQLite ingest state.
 - New `forge ingest`, `forge validate`, and `forge doctor` commands.
 - Explicit extraction errors for unsupported, empty, or low-quality files in pipeline output.
@@ -27,6 +33,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Local exporters with `forge export` for JSONL, CSV, Markdown, optional Parquet, and RAG bundle output.
 - Local YAML template transform engine with `forge transform`.
 - Built-in `summary` and `flashcards` templates plus `forge template list`.
+- Token-aware context packs with `forge pack`.
+- Cleaned dataset builds with `forge dataset`.
+- Retrieval benchmark reports with `forge evaluate`.
+- Optional localhost HTTP API with `forge serve`.
+- Optional MCP stdio adapter with `forge mcp`.
+- Optional dependency extras for `server` and `mcp`.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.
@@ -35,6 +47,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `forge ingest` now normalizes extracted text and adds basic enrichment metadata.
 - `forge train` now reports category counts and warns when categories have very few examples.
 - `forge ingest`, `forge validate`, and folder-based `forge index` accept chunk strategy options.
+- README now positions FORGE as a local-first document intelligence engine.
+- The no-args CLI landing screen highlights the current pipeline, context, and integration commands.
 
 ## [0.1.0] - 2026-05-11
 

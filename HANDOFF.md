@@ -25,6 +25,7 @@ The current branch includes:
 - Evaluation layer: forge evaluate
 - Serve layer: local HTTP API
 - MCP adapter: local stdio tools
+- Release polish for v0.2.0
 
 The project remains local-first. Core behavior does not require cloud APIs or paid services.
 
@@ -489,22 +490,15 @@ Run:
 
 ```bash
 pytest -q
+python3 -m ruff check src tests
 git diff --check
 env PYTHONPYCACHEPREFIX=/private/tmp/forge_pycache python3 -m compileall -q src tests
 ```
 
-Known local issue:
-
-```bash
-python3 -m ruff check src tests
-```
-
-may fail if `ruff` is not installed in the current Python environment.
-
 Latest verified test count:
 
 ```text
-68 passed
+95 passed
 ```
 
 ## Dummy Test Data
@@ -570,12 +564,13 @@ Phase 3D: Dataset command
 Evaluation layer: forge evaluate
 Serve layer: local HTTP API
 MCP adapter: local stdio tools
+Release polish / version bump
 ```
 
 Next likely roadmap items:
 
 ```text
-Release polish / version bump
+Release/PR prep
 Later: ChromaDB migration if FAISS metadata/upsert becomes painful
 Much later: Forge Brain / LoRA fine-tuning
 ```
@@ -609,5 +604,5 @@ Exports:
 ## Suggested Next Work
 
 1. Push latest commits if not already pushed.
-2. Update release notes/version metadata for the completed pipeline stack.
+2. Prepare release/PR notes for v0.2.0.
 3. Consider ChromaDB only if FAISS metadata/upsert behavior becomes painful.

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "file-organizer"
-version = "0.1.0"
-description = "An intelligent AI-powered desktop assistant for organizing files."
+version = "0.2.0"
+description = "A local-first document intelligence and file organization CLI."
 authors = [{name = "Jay"}]
 requires-python = ">=3.10"
 dependencies = [
