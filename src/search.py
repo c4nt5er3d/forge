@@ -2,6 +2,8 @@ import numpy as np
 import pickle
 import logging
 import re
+import math
+from collections import Counter
 from pathlib import Path
 from typing import Any, List, Dict, Tuple, Optional
 from rich.progress import Progress
@@ -14,12 +16,20 @@ try:
 except ImportError:
     faiss = None
 
+try:
+    from rank_bm25 import BM25Okapi
+except ImportError:
+    BM25Okapi = None
+
 def clean_text_for_search(text: str) -> str:
     # Removes underscores, dashes, and extra whitespace that create noise for the ML model.
     text = re.sub(r'[_]{3,}', ' ', text)
     text = re.sub(r'[-]{3,}', ' ', text)
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
+
+def tokenize_for_search(text: str) -> List[str]:
+    return re.findall(r"[a-z0-9]{2,}", text.lower())
 
 class SemanticSearch:
     def __init__(self, index_dir: str = "models/search_index"):
@@ -72,6 +82,54 @@ class SemanticSearch:
         if norm == 0:
             return embedding_array
         return embedding_array / norm
+
+    def _bm25_scores(self, query: str, ordered_items: List[Tuple[int, Dict[str, Any]]]) -> Dict[int, float]:
+        query_tokens = tokenize_for_search(query)
+        if not query_tokens or not ordered_items:
+            return {}
+
+        corpus = [
+            meta.get("tokens") or tokenize_for_search(meta.get("snippet", ""))
+            for _idx, meta in ordered_items
+        ]
+        if BM25Okapi is not None:
+            scores = BM25Okapi(corpus).get_scores(query_tokens)
+            max_score = max(scores) if len(scores) else 0
+            if max_score <= 0:
+                return {}
+            return {
+                idx: float(score / max_score)
+                for (idx, _meta), score in zip(ordered_items, scores)
+                if score > 0
+            }
+
+        doc_count = len(corpus)
+        doc_freq: Counter[str] = Counter()
+        for tokens in corpus:
+            doc_freq.update(set(tokens))
+
+        raw_scores: Dict[int, float] = {}
+        avg_len = sum(len(tokens) for tokens in corpus) / max(doc_count, 1)
+        k1 = 1.5
+        b = 0.75
+        for (idx, _meta), tokens in zip(ordered_items, corpus):
+            token_counts = Counter(tokens)
+            doc_len = len(tokens) or 1
+            score = 0.0
+            for token in query_tokens:
+                if token not in token_counts:
+                    continue
+                idf = math.log(1 + (doc_count - doc_freq[token] + 0.5) / (doc_freq[token] + 0.5))
+                freq = token_counts[token]
+                denom = freq + k1 * (1 - b + b * doc_len / max(avg_len, 1))
+                score += idf * (freq * (k1 + 1)) / denom
+            if score > 0:
+                raw_scores[idx] = score
+
+        max_score = max(raw_scores.values(), default=0)
+        if max_score <= 0:
+            return {}
+        return {idx: score / max_score for idx, score in raw_scores.items()}
 
     def _rebuild_clean_index(self):
         """Remove stale entries and rebuild FAISS index from clean metadata."""
@@ -163,7 +221,8 @@ class SemanticSearch:
                 "name": file.name,
                 "snippet": text[:500].replace("\n", " ") + "...",
                 "hash": self._file_hash(file),
-                "embedding": embedding.tolist()
+                "embedding": embedding.tolist(),
+                "tokens": tokenize_for_search(text)
             }
             current_id += 1
             
@@ -175,20 +234,37 @@ class SemanticSearch:
             self.save_index()
 
     def search(self, query: str, top_k: int = 3) -> List[Tuple[Dict[str, Any], float]]:
-        # Natural language query is embedded into the same vector space as the files.
-        # We then find the 'k' nearest neighbors using Euclidean (L2) distance.
+        # Fuse dense vector retrieval with lightweight lexical BM25 scoring.
         if self.index is None or self.index.ntotal == 0 or self.model is None:
             return []
             
         query_embedding = self.model.encode([query])[0]
         query_embedding = self._normalize_embedding(query_embedding).reshape(1, -1)
-        # L2 distance (lower is better)
-        distances, indices = self.index.search(query_embedding, top_k)
-        
-        results = []
+        candidate_count = min(max(top_k * 4, top_k), self.index.ntotal)
+        distances, indices = self.index.search(query_embedding, candidate_count)
+
+        dense_scores: Dict[int, float] = {}
         for i in range(len(indices[0])):
             idx = indices[0][i]
             if idx != -1 and idx in self.metadata:
-                results.append((self.metadata[idx], float(distances[0][i])))
-                
+                distance = float(distances[0][i])
+                dense_scores[idx] = max(0.0, 1 - (distance ** 2) / 2)
+
+        ordered_items = sorted(self.metadata.items(), key=lambda item: item[0])
+        bm25_scores = self._bm25_scores(query, ordered_items)
+        candidate_ids = set(dense_scores) | set(bm25_scores)
+
+        fused = []
+        for idx in candidate_ids:
+            dense = dense_scores.get(idx, 0.0)
+            lexical = bm25_scores.get(idx, 0.0)
+            score = (0.65 * dense) + (0.35 * lexical)
+            meta = dict(self.metadata[idx])
+            meta["_score_type"] = "hybrid"
+            meta["_score"] = score
+            meta["_dense_score"] = dense
+            meta["_bm25_score"] = lexical
+            fused.append((meta, score))
+
+        results = sorted(fused, key=lambda item: item[1], reverse=True)[:top_k]
         return results

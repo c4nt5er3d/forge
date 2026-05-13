@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Iterator, Optional
 
+from src.intelligence.enricher import enrich_document
+from src.intelligence.normalizer import normalize
 from src.pipeline.chunker import chunk_document
 from src.pipeline.extract import extract_document_text
 from src.pipeline.validator import validate_document
@@ -34,15 +36,18 @@ class Ingestor:
                 continue
 
             result = extract_document_text(file_path, max_chars=self.max_extract_chars)
+            content, cleaning_log = normalize(result.content)
             metadata = {"sha256": self.state_manager.file_sha256(file_path)}
             document = Document.from_file(
                 file_path=file_path,
-                content=result.content,
+                content=content,
                 metadata=metadata,
+                cleaning_log=cleaning_log,
                 extraction_error=result.error,
             )
             document = chunk_document(document, max_chars=self.max_chunk_chars)
             document = validate_document(document)
+            document = enrich_document(document)
 
             if self.use_state:
                 if document.extraction_error:

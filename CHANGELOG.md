@@ -11,11 +11,15 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Phase 1 document pipeline with `Document` JSONL schema, chunking, validation, and SQLite ingest state.
 - New `forge ingest`, `forge validate`, and `forge doctor` commands.
 - Explicit extraction errors for unsupported, empty, or low-quality files in pipeline output.
+- Phase 2 local intelligence helpers for normalization, enrichment, and exact content deduplication.
+- Hybrid semantic search with FAISS dense retrieval fused with BM25-style lexical scoring.
+- Read-only `forge clean --dupes` duplicate report.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.
 - Search query embeddings are normalized before FAISS lookup for consistent cosine-style scoring.
 - Text pipeline extraction attempts charset detection before reporting encoding failures.
+- `forge ingest` now normalizes extracted text and adds basic enrichment metadata.
 
 ## [0.1.0] - 2026-05-11
 

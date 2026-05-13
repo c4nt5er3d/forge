@@ -81,6 +81,7 @@ docs/demo/forge-demo.gif
 - **Smart rename**: Rename from trustworthy extracted text; noisy, empty, binary, and unsupported files stay unchanged.
 - **Semantic search**: Optional vector search for natural-language file lookup.
 - **Document ingest**: Extract files into JSONL `Document` records with chunks, quality scores, and explicit extraction errors.
+- **Hybrid retrieval**: Search fuses FAISS dense retrieval with BM25-style lexical matching.
 - **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
@@ -112,13 +113,16 @@ forge ingest <folder> --output output.jsonl --recursive
 # Check extraction health and local optional dependencies
 forge validate <folder> --recursive
 forge doctor
+
+# Report duplicate extracted documents without deleting files
+forge clean <folder> --dupes --recursive
 ```
 
 ## Document Pipeline
 
 `forge ingest` is the Phase 1 pipeline foundation. It emits one JSON object per line with stable file metadata, extracted content, chunks, a quality score, a cleaning log, and an explicit `extraction_error` when a file cannot produce usable text.
 
-The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. FAISS remains the semantic search backend for now; ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
+The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. FAISS remains the semantic search backend for now; search now fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
 
 ## Optional AI
 
@@ -134,7 +138,7 @@ python -m pip install -e ".[full]"
 
 - **Tesseract OCR** improves text extraction from images for smart rename/search. If Tesseract is missing or an image has no readable text, FORGE skips the rename instead of inventing a bad filename.
 - **Ollama** enables local LLM-assisted rename/category suggestions with `forge rename <folder> --local`.
-- **Sentence Transformers + FAISS** power semantic search with `forge index` and `forge search`.
+- **Sentence Transformers + FAISS** power semantic search with `forge index` and `forge search`. `rank_bm25` improves lexical ranking when installed, with a local fallback scorer otherwise.
 
 ## Safety Guarantees
 
@@ -228,4 +232,3 @@ forge organize demo/messy demo/organized --preview
 ```
 
 Current version: **0.1.0**
-

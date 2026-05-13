@@ -24,6 +24,7 @@ ml = [
 ai = [
     "sentence-transformers",
     "faiss-cpu",
+    "rank_bm25",
     "ollama",
     "pytesseract",
     "Pillow",
@@ -34,6 +35,7 @@ full = [
     "joblib",
     "sentence-transformers",
     "faiss-cpu",
+    "rank_bm25",
     "ollama",
     "pytesseract",
     "Pillow",
@@ -46,6 +48,7 @@ dev = [
     "joblib",
     "sentence-transformers",
     "faiss-cpu",
+    "rank_bm25",
     "ollama",
     "pytesseract",
     "Pillow",

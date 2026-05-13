@@ -98,6 +98,27 @@ def test_search_returns_result_with_persisted_embeddings(tmp_path):
     assert results
     assert results[0][0]["name"] == "budget.txt"
 
+def test_search_hybrid_bm25_can_promote_exact_keyword_match(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "semantic.txt").write_text("General notes about planning and approvals.")
+    (source / "keyword.txt").write_text("ZEBRA-99 incident report with exact tracking identifier.")
+
+    def fake_extract(file_path):
+        if file_path.name == "semantic.txt":
+            return "General notes about planning and approvals."
+        return "ZEBRA-99 incident report with exact tracking identifier."
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model), \
+         patch('src.search.extract_text', side_effect=fake_extract):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        searcher.build_index(source)
+        results = searcher.search("ZEBRA-99", top_k=1)
+
+    assert results[0][0]["name"] == "keyword.txt"
+    assert results[0][0]["_bm25_score"] > 0
+
 def test_local_smart_rename_generates_readable_title(tmp_path):
     file_path = tmp_path / "notes.txt"
     file_path.write_text("Quarterly budget report for payroll expenses and travel reimbursement planning.")

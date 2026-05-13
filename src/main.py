@@ -275,6 +275,34 @@ def doctor_command() -> None:
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]state db:[/#888888]     [#ffffff]{state_db}[/#ffffff]")
     console.print("")
 
+@app.command(name="clean")
+def clean_command(
+    target: Path = typer.Argument(..., help="File or folder to inspect"),
+    dupes: bool = typer.Option(False, "--dupes", help="Report duplicate extracted documents"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories")
+) -> None:
+    """Inspect clean-up opportunities without deleting files."""
+    setup_logging()
+    if not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+    if not dupes:
+        console.print("  [yellow]No clean mode selected. Try --dupes.[/yellow]")
+        return
+
+    from src.intelligence.dedup import dedup_documents
+    from src.pipeline.ingest import Ingestor
+    from src.state_manager import StateManager
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ingestor = Ingestor(state_manager=StateManager(Path(temp_dir) / "state.db"), use_state=False)
+        docs = [doc for doc in ingestor.run(target.resolve(), recursive=recursive) if doc.content]
+
+    deduped = dedup_documents(docs)
+    duplicate_count = len(docs) - len(deduped)
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]documents scanned:[/#888888] [#ffffff]{len(docs)}[/#ffffff]")
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]duplicates found:[/#888888] [#ffffff]{duplicate_count}[/#ffffff]")
+
 @app.command(name="index")
 def index_command(
     target: Path = typer.Argument(..., help="Folder to index"),
@@ -319,9 +347,12 @@ def search_command(
             
         console.print(f"\n  [#444444]TOP {len(results)} MATCHES[/#444444]\n")
         for metadata, distance in results:
-            # Cosine similarity = 1 - (L2_distance² / 2)
-            cosine_sim = max(0, 1 - (distance ** 2) / 2)
-            console.print(f"  [#e8550a]›[/#e8550a] [#f5a623]{metadata['name']}[/#f5a623] [#888888](Score: {cosine_sim:.2f})[/#888888]")
+            if metadata.get("_score_type") == "hybrid":
+                display_score = metadata.get("_score", distance)
+            else:
+                # Cosine similarity = 1 - (L2_distance² / 2)
+                display_score = max(0, 1 - (distance ** 2) / 2)
+            console.print(f"  [#e8550a]›[/#e8550a] [#f5a623]{metadata['name']}[/#f5a623] [#888888](Score: {display_score:.2f})[/#888888]")
             console.print(f"    [#5bc8f5]Path:[/#5bc8f5] [#ffffff]{metadata['path']}[/#ffffff]")
             snippet_panel = Panel(
                 Text(f"\"{metadata['snippet']}\"", style="dim"),
