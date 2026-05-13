@@ -52,6 +52,12 @@ def _default_export_output(export_format: str) -> Path:
         return Path("rag_bundle")
     return Path(f"export.{export_format}")
 
+
+def _default_pack_output(pack_format: str) -> Path:
+    if pack_format == "jsonl":
+        return Path("context_pack.jsonl")
+    return Path("context_pack.md")
+
 def _run_organize(
     target: Optional[str],
     destination: Optional[str],
@@ -461,6 +467,59 @@ def transform_command(
     )
     mode = "local Ollama" if local else "rendered prompts"
     console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Transform complete:[/#28c840] [#ffffff]{len(results)}[/#ffffff] records ({mode}) -> [#ffffff]{output}[/#ffffff]")
+
+@app.command(name="pack")
+def pack_command(
+    target: Optional[Path] = typer.Argument(None, help="File or folder to pack"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Context pack output path"),
+    from_jsonl: Optional[Path] = typer.Option(None, "--from-jsonl", help="Pack existing Document JSONL"),
+    pack_format: str = typer.Option("markdown", "--format", "-f", help="markdown or jsonl"),
+    token_budget: int = typer.Option(8000, "--token-budget", help="Total context window budget"),
+    reserve_tokens: int = typer.Option(500, "--reserve-tokens", help="Tokens to leave unused for instructions/answer"),
+    query: Optional[str] = typer.Option(None, "--query", "-q", help="Prioritize chunks matching this task or question"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy for folder packing")
+) -> None:
+    """Create a token-aware local context bundle for AI workflows."""
+    setup_logging()
+    if target is None and from_jsonl is None:
+        console.print("  [bold red]Error:[/bold red] Provide a file/folder or --from-jsonl.")
+        raise typer.Exit(1)
+    if target is not None and not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+    if from_jsonl is not None and not from_jsonl.exists():
+        console.print(f"  [bold red]Error:[/bold red] JSONL file does not exist: {from_jsonl}")
+        raise typer.Exit(1)
+
+    from src.exporters import load_documents
+    from src.pack import build_context_pack, write_context_pack
+
+    output_path = output or _default_pack_output(pack_format)
+    try:
+        documents = load_documents(
+            target=target,
+            from_jsonl=from_jsonl,
+            recursive=recursive,
+            chunk_strategy=chunk_strategy,
+        )
+        pack = build_context_pack(
+            documents,
+            token_budget=token_budget,
+            reserve_tokens=reserve_tokens,
+            query=query,
+        )
+        write_context_pack(pack, output_path, pack_format)
+    except Exception as e:
+        console.print(f"  [bold red]Pack failed:[/bold red] [red]{e}[/red]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"  [#e8550a]›[/#e8550a] [#28c840]Pack complete:[/#28c840] "
+        f"[#ffffff]{len(pack.entries)}[/#ffffff] chunks, "
+        f"[#ffffff]{pack.estimated_tokens}/{pack.available_tokens}[/#ffffff] estimated tokens -> "
+        f"[#ffffff]{output_path}[/#ffffff]"
+    )
 
 @template_app.command(name="list")
 def template_list_command() -> None:

@@ -82,6 +82,7 @@ docs/demo/forge-demo.gif
 - **Semantic search**: Optional vector search for natural-language file lookup.
 - **Document ingest**: Extract files into JSONL `Document` records with chunks, quality scores, and explicit extraction errors.
 - **Hybrid retrieval**: Search fuses FAISS dense retrieval with BM25-style lexical matching.
+- **Context packs**: Build token-aware local bundles for AI prompts from folders or existing JSONL.
 - **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
@@ -132,6 +133,11 @@ forge export <folder> --format jsonl --output docs.jsonl --recursive
 forge export --from-jsonl docs.jsonl --format markdown --output docs.md
 forge export --from-jsonl docs.jsonl --format rag --output rag_bundle
 
+# Create a token-aware AI context bundle
+forge pack <folder> --output context_pack.md --token-budget 8000 --recursive
+forge pack --from-jsonl docs.jsonl --query "budget approvals" --output context_pack.md
+forge pack --from-jsonl docs.jsonl --format jsonl --output context_pack.jsonl
+
 # Apply local YAML templates
 forge template list
 forge transform --from-jsonl docs.jsonl --template summary --output summary.jsonl
@@ -151,6 +157,12 @@ Optional Phase 2 intelligence features stay local-first: `forge clean --dupes --
 `forge export` writes Document records to local formats: JSONL, CSV, Markdown, optional Parquet, or a small RAG bundle directory with `documents.jsonl` and `manifest.json`.
 
 `forge transform` applies YAML templates from built-in templates or `~/.forge/templates`. By default it renders prompts locally without calling a model. Add `--local` to run the rendered prompt through local Ollama. No cloud API is used by the core transform engine.
+
+## Context Packs
+
+`forge pack` builds a local, token-aware context bundle for AI workflows. It accepts a file/folder or existing Document JSONL, skips extraction failures, estimates tokens without a cloud tokenizer, and keeps output under the requested budget while reserving space for instructions and model output.
+
+By default it writes Markdown with a JSON manifest, source list, and selected chunks. Add `--query` to prioritize chunks that match a task or question, or `--format jsonl` for machine-readable pack records.
 
 ## Optional AI
 
