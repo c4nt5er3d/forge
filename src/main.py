@@ -1,7 +1,9 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import shutil
 import sys
+import tempfile
 import typer
 from pathlib import Path
 from typing import List, Optional
@@ -185,6 +187,93 @@ def train_command(
     from src.ml import MLClassifier
     classifier = MLClassifier()
     classifier.train(data_dir)
+
+@app.command(name="ingest")
+def ingest_command(
+    target: Path = typer.Argument(..., help="File or folder to ingest"),
+    output: Path = typer.Option(Path("output.jsonl"), "--output", "-o", help="JSONL output path"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    state: Optional[Path] = typer.Option(None, "--state", help="SQLite state database path")
+) -> None:
+    """Extract files into Document JSONL without moving source files."""
+    setup_logging()
+    if not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+
+    from src.pipeline.ingest import Ingestor
+    from src.state_manager import StateManager
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ingestor = Ingestor(state_manager=StateManager(state) if state else None)
+    written = 0
+    with open(output, "w", encoding="utf-8") as jsonl:
+        for document in ingestor.run(target.resolve(), recursive=recursive):
+            jsonl.write(document.to_json_line() + "\n")
+            written += 1
+
+    console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Ingest complete:[/#28c840] [#ffffff]{written}[/#ffffff] documents -> [#ffffff]{output}[/#ffffff]")
+
+@app.command(name="validate")
+def validate_command(
+    target: Path = typer.Argument(..., help="File or folder to validate"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories")
+) -> None:
+    """Validate extraction quality without moving files or updating ingest state."""
+    setup_logging()
+    if not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+
+    from src.pipeline.ingest import Ingestor
+    from src.state_manager import StateManager
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ingestor = Ingestor(state_manager=StateManager(Path(temp_dir) / "state.db"), use_state=False)
+        docs = list(ingestor.run(target.resolve(), recursive=recursive))
+    failures = [doc for doc in docs if doc.extraction_error]
+
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]validated:[/#888888] [#ffffff]{len(docs)}[/#ffffff] documents")
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]issues:[/#888888]    [#ffffff]{len(failures)}[/#ffffff]")
+    for doc in failures[:10]:
+        console.print(f"    [yellow]{doc.filename}[/yellow]: {doc.extraction_error}")
+
+@app.command(name="doctor")
+def doctor_command() -> None:
+    """Check optional local dependencies and search index health."""
+    setup_logging()
+    checks = []
+
+    checks.append(("Tesseract binary", shutil.which("tesseract") is not None))
+    checks.append(("Ollama binary", shutil.which("ollama") is not None))
+
+    for label, module_name in [
+        ("PyPDF2", "PyPDF2"),
+        ("Pillow", "PIL"),
+        ("pytesseract", "pytesseract"),
+        ("sentence-transformers", "sentence_transformers"),
+        ("faiss-cpu", "faiss"),
+        ("pydantic", "pydantic"),
+    ]:
+        try:
+            __import__(module_name)
+            available = True
+        except ImportError:
+            available = False
+        checks.append((label, available))
+
+    search_index = Path("models/search_index/faiss.index")
+    checks.append(("FAISS index file", search_index.exists()))
+    state_db = Path.home() / ".forge" / "state.db"
+    checks.append(("Ingest state DB", state_db.exists()))
+
+    console.print("\n  [#444444]FORGE DOCTOR[/#444444]\n")
+    for label, available in checks:
+        status = "[#28c840]ok[/#28c840]" if available else "[#febc2e]missing[/#febc2e]"
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]{label}:[/#888888] {status}")
+    console.print(f"\n  [#e8550a]›[/#e8550a] [#888888]search index:[/#888888] [#ffffff]{search_index.resolve()}[/#ffffff]")
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]state db:[/#888888]     [#ffffff]{state_db}[/#ffffff]")
+    console.print("")
 
 @app.command(name="index")
 def index_command(

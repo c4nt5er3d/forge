@@ -2,11 +2,33 @@
 from unittest.mock import patch
 from pathlib import Path
 import zipfile
+import numpy as np
 
 from src.ml import MLClassifier
 from src.search import SemanticSearch
 from src.llm import LocalLLM, extract_text
 from src.organizer import organize
+
+
+class CountingEmbeddingModel:
+    def __init__(self):
+        self.calls = []
+
+    def get_sentence_embedding_dimension(self):
+        return 3
+
+    def encode(self, texts):
+        self.calls.extend(texts)
+        vectors = []
+        for text in texts:
+            lowered = text.lower()
+            if "budget" in lowered:
+                vectors.append([1.0, 0.0, 0.0])
+            elif "roadmap" in lowered:
+                vectors.append([0.0, 1.0, 0.0])
+            else:
+                vectors.append([0.0, 0.0, 1.0])
+        return np.array(vectors, dtype="float32")
 
 def test_ml_predict_returns_none_without_model():
     # Mocking model path to a non-existent file
@@ -33,6 +55,48 @@ def test_search_model_loading_error():
         searcher = SemanticSearch(index_dir="/tmp/test_index")
         assert searcher.model is None
         assert searcher.dimension == 384
+
+def test_search_metadata_persists_embeddings_and_reloads_without_reencoding(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    doc = source / "budget.txt"
+    doc.write_text("Quarterly budget report for planning and approvals.")
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model), \
+         patch('src.search.extract_text', return_value="Quarterly budget report for planning and approvals."):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        searcher.build_index(source)
+
+    assert "embedding" in next(iter(searcher.metadata.values()))
+    encode_calls_after_build = len(model.calls)
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model):
+        reloaded = SemanticSearch(index_dir=str(tmp_path / "index"))
+
+    assert len(model.calls) == encode_calls_after_build
+    assert reloaded.index.ntotal == 1
+
+def test_search_returns_result_with_persisted_embeddings(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "budget.txt").write_text("Quarterly budget report for planning and approvals.")
+    (source / "roadmap.txt").write_text("Product roadmap notes for delivery milestones.")
+
+    def fake_extract(file_path):
+        if file_path.name == "budget.txt":
+            return "Quarterly budget report for planning and approvals."
+        return "Product roadmap notes for delivery milestones."
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model), \
+         patch('src.search.extract_text', side_effect=fake_extract):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        searcher.build_index(source)
+        results = searcher.search("budget planning", top_k=1)
+
+    assert results
+    assert results[0][0]["name"] == "budget.txt"
 
 def test_local_smart_rename_generates_readable_title(tmp_path):
     file_path = tmp_path / "notes.txt"

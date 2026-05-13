@@ -1,10 +1,9 @@
-import os
 import numpy as np
 import pickle
 import logging
 import re
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import Any, List, Dict, Tuple, Optional
 from rich.progress import Progress
 
 from src.llm import extract_text
@@ -42,7 +41,7 @@ class SemanticSearch:
             self.dimension = 384 # Standard dimension for the MiniLM model series.
             
         self.index = None
-        self.metadata: Dict[int, Dict[str, str]] = {}
+        self.metadata: Dict[int, Dict[str, Any]] = {}
         self.load_index()
 
     def load_index(self):
@@ -67,20 +66,37 @@ class SemanticSearch:
         stat = file.stat()
         return f"{stat.st_mtime}_{stat.st_size}"
 
+    def _normalize_embedding(self, embedding) -> np.ndarray:
+        embedding_array = np.array(embedding).astype('float32')
+        norm = np.linalg.norm(embedding_array)
+        if norm == 0:
+            return embedding_array
+        return embedding_array / norm
+
     def _rebuild_clean_index(self):
         """Remove stale entries and rebuild FAISS index from clean metadata."""
-        if faiss is None or self.model is None:
+        if faiss is None:
             return
         valid_metadata = {}
         valid_embeddings = []
         
         # Collect only valid files
-        for idx, meta in self.metadata.items():
+        for meta in self.metadata.values():
             path = Path(meta["path"])
             if path.exists() and self._file_hash(path) == meta.get("hash"):
+                embedding = meta.get("embedding")
+                if embedding is None:
+                    if self.model is None:
+                        continue
+                    # Backward compatibility for old indexes created before
+                    # embeddings were persisted in metadata.
+                    embedding = self.model.encode([meta["snippet"]])[0]
+                    embedding = self._normalize_embedding(embedding)
+                    meta["embedding"] = embedding.tolist()
+                else:
+                    embedding = self._normalize_embedding(embedding)
+                    meta["embedding"] = embedding.tolist()
                 valid_metadata[len(valid_embeddings)] = meta
-                # We need to re-encode because we don't store raw embeddings.
-                embedding = self.model.encode([meta["snippet"]])[0]
                 valid_embeddings.append(embedding)
         
         self.index = faiss.IndexFlatL2(self.dimension)
@@ -137,7 +153,7 @@ class SemanticSearch:
             # 'meaning' is represented by spatial proximity.
             embedding = self.model.encode([text])[0]
             # Normalize for cosine similarity calculation
-            embedding = embedding / np.linalg.norm(embedding)
+            embedding = self._normalize_embedding(embedding)
             new_embeddings.append(embedding)
             
             # Vector stores only save IDs; we must persist our own metadata 
@@ -146,7 +162,8 @@ class SemanticSearch:
                 "path": str(file.resolve()),
                 "name": file.name,
                 "snippet": text[:500].replace("\n", " ") + "...",
-                "hash": self._file_hash(file)
+                "hash": self._file_hash(file),
+                "embedding": embedding.tolist()
             }
             current_id += 1
             
@@ -157,13 +174,14 @@ class SemanticSearch:
             self.metadata.update(new_metadata)
             self.save_index()
 
-    def search(self, query: str, top_k: int = 3) -> List[Tuple[Dict[str, str], float]]:
+    def search(self, query: str, top_k: int = 3) -> List[Tuple[Dict[str, Any], float]]:
         # Natural language query is embedded into the same vector space as the files.
         # We then find the 'k' nearest neighbors using Euclidean (L2) distance.
         if self.index is None or self.index.ntotal == 0 or self.model is None:
             return []
             
-        query_embedding = self.model.encode([query]).astype('float32')
+        query_embedding = self.model.encode([query])[0]
+        query_embedding = self._normalize_embedding(query_embedding).reshape(1, -1)
         # L2 distance (lower is better)
         distances, indices = self.index.search(query_embedding, top_k)
         

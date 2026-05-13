@@ -10,6 +10,8 @@
 
 It is built for messy folders like Downloads: inspect what will happen, move or copy files into useful categories, rename documents when the content is trustworthy, and undo the operation if you do not like the result.
 
+FORGE also includes an early document pipeline: `forge ingest` extracts local files into a machine-readable `Document` JSONL contract without moving the originals.
+
 > Note: This project started as a simple file organizer script, but it turned into this somehow.
 
 ```bash
@@ -78,6 +80,8 @@ docs/demo/forge-demo.gif
 - **Smart organize**: Categorize by extension rules, optional ML model, or optional local AI.
 - **Smart rename**: Rename from trustworthy extracted text; noisy, empty, binary, and unsupported files stay unchanged.
 - **Semantic search**: Optional vector search for natural-language file lookup.
+- **Document ingest**: Extract files into JSONL `Document` records with chunks, quality scores, and explicit extraction errors.
+- **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
 ## Common Commands
@@ -101,7 +105,20 @@ forge watch <source_folder> <destination_folder>
 # Build and query semantic search index
 forge index <folder>
 forge search "tax forms from last year"
+
+# Extract files into Document JSONL without moving originals
+forge ingest <folder> --output output.jsonl --recursive
+
+# Check extraction health and local optional dependencies
+forge validate <folder> --recursive
+forge doctor
 ```
+
+## Document Pipeline
+
+`forge ingest` is the Phase 1 pipeline foundation. It emits one JSON object per line with stable file metadata, extracted content, chunks, a quality score, a cleaning log, and an explicit `extraction_error` when a file cannot produce usable text.
+
+The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. FAISS remains the semantic search backend for now; ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
 
 ## Optional AI
 
@@ -211,5 +228,4 @@ forge organize demo/messy demo/organized --preview
 ```
 
 Current version: **0.1.0**
-
 
