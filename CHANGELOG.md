@@ -22,6 +22,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `forge chunk` for previewing chunk counts without writing JSONL.
 - Semantic duplicate reporting with `forge clean --dupes --semantic`.
 - Optional local CrossEncoder reranking with `forge search --rerank`.
+- Optional local Ollama HyDE query rewriting with `forge search --hyde --local`.
+- Context-compressed search snippets with `forge search --compress`.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.

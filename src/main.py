@@ -414,7 +414,11 @@ def search_command(
     query: str = typer.Argument(..., help="Natural language search query"),
     limit: int = typer.Option(3, "--limit", "-n", help="Number of results to return"),
     explain: bool = typer.Option(False, "--explain", help="Show dense, BM25, chunk, and matched-term details"),
-    rerank: bool = typer.Option(False, "--rerank", help="Use optional local CrossEncoder reranking")
+    rerank: bool = typer.Option(False, "--rerank", help="Use optional local CrossEncoder reranking"),
+    hyde: bool = typer.Option(False, "--hyde", help="Use local Ollama HyDE query rewriting"),
+    local: bool = typer.Option(False, "--local", "-l", help="Allow local Ollama features"),
+    ollama_model: str = typer.Option("llama3.2", "--ollama-model", help="Ollama model for local HyDE"),
+    compress: bool = typer.Option(False, "--compress", help="Show compressed query-relevant snippets")
 ) -> None:
     """
     Search for files using natural language (e.g. 'tax forms from last year').
@@ -424,8 +428,24 @@ def search_command(
     
     try:
         from src.search import SemanticSearch
+        search_query = None
+        if hyde:
+            if not local:
+                console.print("  [yellow]HyDE requires --local so it can use local Ollama. Falling back to the raw query.[/yellow]")
+            else:
+                from src.llm import LocalLLM
+                llm = LocalLLM(model=ollama_model, use_ollama=True)
+                search_query = llm.hyde_query(query)
+                if explain:
+                    console.print(f"  [#e8550a]›[/#e8550a] [#888888]hyde query:[/#888888] [#ffffff]{search_query}[/#ffffff]\n")
         searcher = SemanticSearch()
-        results = searcher.search(query, limit, rerank=rerank)
+        results = searcher.search(
+            query,
+            limit,
+            rerank=rerank,
+            compress=compress,
+            search_query=search_query,
+        )
         
         if not results:
             console.print("  [yellow]No matches found or index is empty. Run 'forge index' first![/yellow]")
@@ -452,7 +472,7 @@ def search_command(
                     console.print(f"    [#888888]rerank:[/#888888] {metadata['_rerank_score']:.2f}")
                 console.print(f"    [#888888]tags:[/#888888] {tags}")
             snippet_panel = Panel(
-                Text(f"\"{metadata['snippet']}\"", style="dim"),
+                Text(f"\"{metadata.get('_compressed_snippet') or metadata['snippet']}\"", style="dim"),
                 border_style="dim",
                 padding=(0, 1)
             )

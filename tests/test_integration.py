@@ -79,7 +79,7 @@ def test_search_command_explain_prints_score_parts(monkeypatch):
     runner = CliRunner()
 
     class FakeSearch:
-        def search(self, query, limit, rerank=False):
+        def search(self, query, limit, rerank=False, compress=False, search_query=None):
             return [({
                 "name": "notes.txt",
                 "path": "/tmp/notes.txt",
@@ -101,6 +101,67 @@ def test_search_command_explain_prints_score_parts(monkeypatch):
     assert "dense:" in result.output
     assert "bm25:" in result.output
     assert "Chunk:" in result.output
+
+
+def test_search_command_hyde_uses_local_llm(monkeypatch):
+    runner = CliRunner()
+
+    class FakeLLM:
+        def __init__(self, model="llama3.2", use_ollama=False):
+            assert model == "llama3.2"
+            assert use_ollama is True
+
+        def hyde_query(self, query):
+            return f"expanded {query}"
+
+    class FakeSearch:
+        def search(self, query, limit, rerank=False, compress=False, search_query=None):
+            assert query == "budget"
+            assert search_query == "expanded budget"
+            return [({
+                "name": "notes.txt",
+                "path": "/tmp/notes.txt",
+                "snippet": "budget planning",
+                "_score_type": "hybrid",
+                "_score": 0.75,
+                "_dense_score": 0.5,
+                "_bm25_score": 1.0,
+                "_matched_terms": ["budget"],
+                "_hyde_query": "expanded budget",
+            }, 0.75)]
+
+    monkeypatch.setattr("src.llm.LocalLLM", FakeLLM)
+    monkeypatch.setattr("src.search.SemanticSearch", lambda: FakeSearch())
+    result = runner.invoke(app, ["search", "budget", "--hyde", "--local", "--explain"])
+
+    assert result.exit_code == 0
+    assert "hyde query:" in result.output
+
+
+def test_search_command_compress_uses_compressed_snippet(monkeypatch):
+    runner = CliRunner()
+
+    class FakeSearch:
+        def search(self, query, limit, rerank=False, compress=False, search_query=None):
+            assert compress is True
+            return [({
+                "name": "notes.txt",
+                "path": "/tmp/notes.txt",
+                "snippet": "long noisy snippet",
+                "_compressed_snippet": "compressed snippet",
+                "_score_type": "hybrid",
+                "_score": 0.75,
+                "_dense_score": 0.5,
+                "_bm25_score": 1.0,
+                "_matched_terms": ["budget"],
+            }, 0.75)]
+
+    monkeypatch.setattr("src.search.SemanticSearch", lambda: FakeSearch())
+    result = runner.invoke(app, ["search", "budget", "--compress"])
+
+    assert result.exit_code == 0
+    assert "compressed snippet" in result.output
+    assert "long noisy snippet" not in result.output
 
 
 def test_watch_command_loads_categories_and_starts_watcher(tmp_path):

@@ -109,6 +109,8 @@ forge index --from-jsonl docs.jsonl
 forge search "tax forms from last year"
 forge search "tax forms from last year" --explain
 forge search "tax forms from last year" --rerank --explain
+forge search "tax forms from last year" --compress
+forge search "tax forms from last year" --hyde --local --explain
 
 # Extract files into Document JSONL without moving originals
 forge ingest <folder> --output output.jsonl --recursive
@@ -132,7 +134,7 @@ forge clean <folder> --dupes --semantic --threshold 0.97
 
 The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. `forge ingest`, `forge validate`, and `forge index` support configurable chunking strategies: `recursive`, `paragraph`, `sentence`, and `token`. `forge index` uses the ingest pipeline and indexes document chunks with metadata such as document ID, chunk ID, tags, quality score, and chunk strategy. FAISS remains the semantic search backend for now; search fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
 
-Optional Phase 2 intelligence features stay local-first: `forge clean --dupes --semantic` uses local embeddings for near-duplicate reports, and `forge search --rerank` uses a local CrossEncoder when the model is available.
+Optional Phase 2 intelligence features stay local-first: `forge clean --dupes --semantic` uses local embeddings for near-duplicate reports, `forge search --rerank` uses a local CrossEncoder when the model is available, and `forge search --hyde --local` uses local Ollama to rewrite a query before retrieval. `forge search --compress` trims snippets down to the most query-relevant sentences without any model call.
 
 ## Optional AI
 

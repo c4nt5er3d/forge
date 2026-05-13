@@ -32,6 +32,30 @@ def clean_text_for_search(text: str) -> str:
 def tokenize_for_search(text: str) -> List[str]:
     return re.findall(r"[a-z0-9]{2,}", text.lower())
 
+def compress_context(text: str, query: str, max_sentences: int = 2, max_chars: int = 350) -> str:
+    sentences = [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", text) if sentence.strip()]
+    if not sentences:
+        return text[:max_chars]
+
+    query_tokens = set(tokenize_for_search(query))
+    ranked = []
+    for index, sentence in enumerate(sentences):
+        sentence_tokens = set(tokenize_for_search(sentence))
+        overlap = len(query_tokens & sentence_tokens)
+        density = overlap / max(len(sentence_tokens), 1)
+        ranked.append((overlap, density, -index, sentence))
+
+    selected = [
+        sentence for overlap, _density, _neg_index, sentence
+        in sorted(ranked, reverse=True)
+        if overlap > 0
+    ][:max_sentences]
+    if not selected:
+        selected = sentences[:max_sentences]
+
+    compressed = " ".join(selected)
+    return compressed[:max_chars] + ("..." if len(compressed) > max_chars else "")
+
 def inspect_index_dir(index_dir: str = "models/search_index") -> Dict[str, Any]:
     index_path = Path(index_dir) / "faiss.index"
     metadata_path = Path(index_dir) / "metadata.pkl"
@@ -336,12 +360,20 @@ class SemanticSearch:
             reranked.append((meta, normalized if spread else fallback_score))
         return sorted(reranked, key=lambda item: item[1], reverse=True)
 
-    def search(self, query: str, top_k: int = 3, rerank: bool = False) -> List[Tuple[Dict[str, Any], float]]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 3,
+        rerank: bool = False,
+        compress: bool = False,
+        search_query: Optional[str] = None,
+    ) -> List[Tuple[Dict[str, Any], float]]:
         # Fuse dense vector retrieval with lightweight lexical BM25 scoring.
         if self.index is None or self.index.ntotal == 0 or self.model is None:
             return []
-            
-        query_embedding = self.model.encode([query])[0]
+
+        retrieval_query = search_query or query
+        query_embedding = self.model.encode([retrieval_query])[0]
         query_embedding = self._normalize_embedding(query_embedding).reshape(1, -1)
         candidate_count = min(max(top_k * 4, top_k), self.index.ntotal)
         distances, indices = self.index.search(query_embedding, candidate_count)
@@ -354,7 +386,7 @@ class SemanticSearch:
                 dense_scores[idx] = max(0.0, 1 - (distance ** 2) / 2)
 
         ordered_items = sorted(self.metadata.items(), key=lambda item: item[0])
-        bm25_scores = self._bm25_scores(query, ordered_items)
+        bm25_scores = self._bm25_scores(retrieval_query, ordered_items)
         candidate_ids = set(dense_scores) | set(bm25_scores)
 
         fused = []
@@ -371,6 +403,10 @@ class SemanticSearch:
                 token for token in tokenize_for_search(query)
                 if token in (self.metadata[idx].get("tokens") or [])
             ]
+            if search_query:
+                meta["_hyde_query"] = search_query
+            if compress:
+                meta["_compressed_snippet"] = compress_context(meta.get("snippet", ""), query)
             fused.append((meta, score))
 
         results = sorted(fused, key=lambda item: item[1], reverse=True)

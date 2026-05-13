@@ -194,6 +194,33 @@ class LocalLLM:
             logging.error(f"Keyword extraction failed: {e}")
             return ""
 
+    def hyde_query(self, raw_query: str) -> str:
+        """Generate a local hypothetical answer document for retrieval."""
+        if not self.use_ollama:
+            return raw_query
+        if ollama is None:
+            logging.error("Ollama package is not installed. Cannot run HyDE query rewrite.")
+            return raw_query
+
+        prompt = f"""
+        Write a short, factual document that would answer this search query.
+        Use concrete terms likely to appear in relevant local files.
+        Do not add commentary.
+
+        Query:
+        {raw_query}
+        """
+        try:
+            response = ollama.chat(
+                model=self.model,
+                messages=[{'role': 'user', 'content': prompt}],
+            )
+            content = response.get('message', {}).get('content', '').strip()
+            return content or raw_query
+        except Exception as e:
+            logging.error(f"HyDE query rewrite failed: {e}")
+            return raw_query
+
     def analyze_and_rename(self, file_path: Path, categories: List[str]) -> Tuple[Optional[str], Optional[str]]:
         # High-level logic that decides whether to use deep LLM analysis 
         # or fast mathematical keyword extraction.

@@ -5,7 +5,7 @@ import zipfile
 import numpy as np
 
 from src.ml import MLClassifier
-from src.search import SemanticSearch
+from src.search import SemanticSearch, compress_context
 from src.llm import LocalLLM, extract_text
 from src.organizer import organize
 from src.pipeline.ingest import Ingestor
@@ -185,6 +185,47 @@ def test_search_rerank_falls_back_when_crossencoder_missing(tmp_path):
 
     assert results[0][0]["name"] == "budget.txt"
     assert "_rerank_score" not in results[0][0]
+
+def test_search_uses_hyde_query_and_compressed_snippet(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "budget.txt").write_text(
+        "Roadmap delivery notes are unrelated. "
+        "Budget planning approvals explain payroll spending. "
+        "Another unrelated sentence follows."
+    )
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        searcher.build_index(source)
+        results = searcher.search(
+            "payroll spending",
+            top_k=1,
+            compress=True,
+            search_query="budget planning payroll spending approvals",
+        )
+
+    assert results[0][0]["_hyde_query"] == "budget planning payroll spending approvals"
+    assert "Budget planning approvals" in results[0][0]["_compressed_snippet"]
+
+
+def test_compress_context_prefers_query_relevant_sentences():
+    text = (
+        "Roadmap delivery notes are unrelated. "
+        "Budget planning approvals explain payroll spending. "
+        "Release checklist is separate."
+    )
+
+    compressed = compress_context(text, "payroll budget")
+
+    assert compressed.startswith("Budget planning approvals")
+
+
+def test_local_llm_hyde_query_falls_back_without_ollama():
+    llm = LocalLLM(use_ollama=False)
+
+    assert llm.hyde_query("budget planning") == "budget planning"
 
 def test_index_from_jsonl_indexes_document_chunks(tmp_path):
     model = CountingEmbeddingModel()
