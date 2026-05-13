@@ -84,6 +84,7 @@ docs/demo/forge-demo.gif
 - **Hybrid retrieval**: Search fuses FAISS dense retrieval with BM25-style lexical matching.
 - **Context packs**: Build token-aware local bundles for AI prompts from folders or existing JSONL.
 - **Dataset builds**: Compose ingest, chunking, deduplication, and export into one local command.
+- **Retrieval evaluation**: Score local search quality with JSON/JSONL benchmark cases.
 - **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
@@ -144,6 +145,10 @@ forge dataset <folder> --output dataset.jsonl --recursive
 forge dataset <folder> --format rag --output dataset_bundle --dedup
 forge dataset --from-jsonl docs.jsonl --format markdown --output dataset.md
 
+# Evaluate retrieval quality
+forge evaluate eval_cases.json --output evaluation.json --limit 5
+forge evaluate eval_cases.jsonl --format markdown --output evaluation.md
+
 # Apply local YAML templates
 forge template list
 forge transform --from-jsonl docs.jsonl --template summary --output summary.jsonl
@@ -175,6 +180,12 @@ By default it writes Markdown with a JSON manifest, source list, and selected ch
 `forge dataset` is a composed local workflow: ingest or load Document JSONL, drop extraction failures, optionally deduplicate, and export to JSONL, CSV, Markdown, optional Parquet, or a RAG bundle. It writes a small manifest next to the dataset by default.
 
 Exact deduplication is enabled by default. Add `--no-dedup` to preserve every usable record, or `--semantic` to use optional local embeddings for near-duplicate removal.
+
+## Evaluation
+
+`forge evaluate` runs local search against JSON or JSONL benchmark cases and reports hit rate plus mean reciprocal rank. Each case needs a `query` and an `expected` object, such as `{"filename": "budget.txt"}`, `{"path": "budget"}`, `{"document_id": "..."}`, `{"chunk_id": "..."}`, or `{"contains": "payroll"}`.
+
+Reports can be written as JSON or Markdown. Evaluation uses the local FAISS index; run `forge index` first.
 
 ## Optional AI
 

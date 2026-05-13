@@ -22,6 +22,7 @@ The current branch includes:
 - Phase 3B YAML template transform engine
 - Phase 3C token-aware context packs
 - Phase 3D dataset command
+- Evaluation layer: forge evaluate
 
 The project remains local-first. Core behavior does not require cloud APIs or paid services.
 
@@ -318,6 +319,37 @@ What it does:
 - Exports through the existing exporter formats: `jsonl`, `csv`, `markdown`, `rag`, and optional `parquet`.
 - Writes a dataset manifest by default unless `--no-manifest` is passed.
 
+### Retrieval Evaluation
+
+Commands:
+
+```bash
+forge evaluate eval_cases.json --output evaluation.json --limit 5
+forge evaluate eval_cases.jsonl --format markdown --output evaluation.md
+forge evaluate eval_cases.json --rerank --compress
+```
+
+Case formats:
+
+```json
+[
+  {
+    "id": "budget",
+    "query": "budget planning approvals",
+    "expected": {"filename": "budget.txt"}
+  }
+]
+```
+
+What it does:
+
+- Runs local search against JSON or JSONL benchmark cases.
+- Requires a local index built with `forge index`.
+- Supports expected matches by `filename`, `path`, `document_id`, `chunk_id`, or `contains`.
+- Computes hit count, hit rate, and mean reciprocal rank.
+- Writes JSON reports by default or Markdown with `--format markdown`.
+- Can evaluate reranked or compressed search behavior with `--rerank` and `--compress`.
+
 ## Key Files
 
 Pipeline:
@@ -345,6 +377,7 @@ Export and transform:
 ```text
 src/exporters/base.py
 src/dataset.py
+src/evaluate.py
 src/pack.py
 src/transform/engine.py
 src/transform/templates/summary.yaml
@@ -366,6 +399,7 @@ tests/test_intelligence.py
 tests/test_integration.py
 tests/test_export_transform.py
 tests/test_dataset.py
+tests/test_evaluate.py
 tests/test_pack.py
 ```
 
@@ -453,12 +487,12 @@ Phase 3A: Exporters
 Phase 3B: Template transform engine
 Phase 3C: Token-aware context packs
 Phase 3D: Dataset command
+Evaluation layer: forge evaluate
 ```
 
 Next likely roadmap items:
 
 ```text
-Evaluation layer: forge evaluate
 Serve / MCP
 Later: ChromaDB migration if FAISS metadata/upsert becomes painful
 Much later: Forge Brain / LoRA fine-tuning
@@ -493,5 +527,5 @@ Exports:
 ## Suggested Next Work
 
 1. Push latest commits if not already pushed.
-2. Add `forge evaluate` for retrieval quality benchmarks.
-3. Add MCP/server only after export/pack/evaluate are stable.
+2. Add MCP/server only after export/pack/evaluate are stable.
+3. Consider ChromaDB only if FAISS metadata/upsert behavior becomes painful.

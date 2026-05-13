@@ -14,6 +14,7 @@ Public commands use positional paths:
 * `forge pack --from-jsonl docs.jsonl [--format markdown|jsonl] [--output PATH]`
 * `forge dataset <target> [--format jsonl|csv|markdown|parquet|rag] [--dedup/--no-dedup] [--semantic] [--output PATH]`
 * `forge dataset --from-jsonl docs.jsonl [--format jsonl|csv|markdown|parquet|rag] [--output PATH]`
+* `forge evaluate eval_cases.json [--limit N] [--format json|markdown] [--output PATH]`
 * `forge undo [--preview] [--steps N]`
 
 The hidden `forge run` command remains available for older option-style scripts.
@@ -69,6 +70,16 @@ Composes loaded `Document` records into cleaned dataset exports.
   Drops extraction failures and removes exact or optional semantic duplicates.
 * `write_dataset(documents: Iterable[Document], output: Path, export_format: str = "jsonl", dedup: bool = True, semantic: bool = False, threshold: float = 0.97, write_manifest: bool = True) -> DatasetResult`
   Exports the prepared documents and writes a dataset manifest when enabled.
+
+### `src.evaluate`
+Scores retrieval quality against local benchmark cases.
+
+* `load_evaluation_cases(path: Path) -> List[EvaluationCase]`
+  Loads JSON or JSONL cases with `query` and `expected` fields.
+* `evaluate_cases(cases: Iterable[EvaluationCase], searcher: Any, top_k: int = 5, rerank: bool = False, compress: bool = False) -> EvaluationReport`
+  Runs search and computes hit count, hit rate, and mean reciprocal rank.
+* `write_evaluation_report(report: EvaluationReport, output: Path, output_format: str = "json") -> None`
+  Writes JSON or Markdown reports.
 
 ### `src.utils`
 Utility and transaction history functions.

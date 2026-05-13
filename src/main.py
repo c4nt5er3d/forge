@@ -64,6 +64,12 @@ def _default_dataset_output(dataset_format: str) -> Path:
         return Path("dataset_bundle")
     return Path(f"dataset.{dataset_format}")
 
+
+def _default_evaluate_output(evaluate_format: str) -> Path:
+    if evaluate_format == "markdown":
+        return Path("evaluation.md")
+    return Path("evaluation.json")
+
 def _run_organize(
     target: Optional[str],
     destination: Optional[str],
@@ -587,6 +593,52 @@ def dataset_command(
         f"  [#e8550a]›[/#e8550a] [#888888]duplicates removed:[/#888888] "
         f"[#ffffff]{result.duplicate_count}[/#ffffff]  "
         f"[#888888]extraction errors skipped:[/#888888] [#ffffff]{result.skipped_error_count}[/#ffffff]"
+    )
+
+@app.command(name="evaluate")
+def evaluate_command(
+    cases: Path = typer.Argument(..., help="JSON or JSONL evaluation cases"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Evaluation report output path"),
+    report_format: str = typer.Option("json", "--format", "-f", help="json or markdown"),
+    limit: int = typer.Option(5, "--limit", "-n", help="Number of search results per case"),
+    index_dir: Path = typer.Option(Path("models/search_index"), "--index-dir", help="Search index directory"),
+    rerank: bool = typer.Option(False, "--rerank", help="Use optional local CrossEncoder reranking"),
+    compress: bool = typer.Option(False, "--compress", help="Evaluate with compressed snippets")
+) -> None:
+    """Evaluate retrieval quality against local search cases."""
+    setup_logging()
+    if not cases.exists():
+        console.print(f"  [bold red]Error:[/bold red] Evaluation cases do not exist: {cases}")
+        raise typer.Exit(1)
+    if limit <= 0:
+        console.print("  [bold red]Error:[/bold red] --limit must be greater than zero.")
+        raise typer.Exit(1)
+
+    from src.evaluate import evaluate_cases, load_evaluation_cases, write_evaluation_report
+    from src.search import SemanticSearch
+
+    output_path = output or _default_evaluate_output(report_format)
+    try:
+        evaluation_cases = load_evaluation_cases(cases)
+        searcher = SemanticSearch(index_dir=str(index_dir))
+        report = evaluate_cases(
+            evaluation_cases,
+            searcher,
+            top_k=limit,
+            rerank=rerank,
+            compress=compress,
+        )
+        write_evaluation_report(report, output_path, report_format)
+    except Exception as e:
+        console.print(f"  [bold red]Evaluate failed:[/bold red] [red]{e}[/red]")
+        raise typer.Exit(1)
+
+    console.print(
+        f"  [#e8550a]›[/#e8550a] [#28c840]Evaluation complete:[/#28c840] "
+        f"[#ffffff]{report.hit_count}/{report.case_count}[/#ffffff] hits, "
+        f"[#888888]hit rate:[/#888888] [#ffffff]{report.hit_rate:.3f}[/#ffffff] "
+        f"[#888888]mrr:[/#888888] [#ffffff]{report.mrr:.3f}[/#ffffff] -> "
+        f"[#ffffff]{output_path}[/#ffffff]"
     )
 
 @template_app.command(name="list")
