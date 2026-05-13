@@ -130,6 +130,20 @@ def test_index_uses_ingest_chunks_with_document_metadata(tmp_path):
     assert "quality_score" in meta
     assert isinstance(meta["tags"], list)
 
+def test_index_records_selected_chunk_strategy(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "notes.txt").write_text("First sentence. Second sentence. Third sentence with budget planning.")
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        indexed = searcher.build_index(source, chunk_strategy="sentence")
+        results = searcher.search("budget planning", top_k=1)
+
+    assert indexed == 1
+    assert results[0][0]["chunk_strategy"] == "sentence"
+
 def test_index_from_jsonl_indexes_document_chunks(tmp_path):
     model = CountingEmbeddingModel()
     source = tmp_path / "source"

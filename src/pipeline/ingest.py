@@ -17,11 +17,13 @@ class Ingestor:
         state_manager: Optional[StateManager] = None,
         max_extract_chars: int = 2000,
         max_chunk_chars: int = 1000,
+        chunk_strategy: str = "recursive",
         use_state: bool = True,
     ):
         self.state_manager = state_manager if state_manager is not None else StateManager()
         self.max_extract_chars = max_extract_chars
         self.max_chunk_chars = max_chunk_chars
+        self.chunk_strategy = chunk_strategy
         self.use_state = use_state
 
     def run(self, target: Path, recursive: bool = False) -> Iterator[Document]:
@@ -45,7 +47,11 @@ class Ingestor:
                 cleaning_log=cleaning_log,
                 extraction_error=result.error,
             )
-            document = chunk_document(document, max_chars=self.max_chunk_chars)
+            document = chunk_document(
+                document,
+                max_chars=self.max_chunk_chars,
+                strategy=self.chunk_strategy,
+            )
             document = validate_document(document)
             document = enrich_document(document)
 

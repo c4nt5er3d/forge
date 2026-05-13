@@ -215,6 +215,7 @@ class SemanticSearch:
             "tags": document.metadata.get("tags", []),
             "word_count": document.metadata.get("word_count", 0),
             "chunk_count": len(document.chunks),
+            "chunk_strategy": document.metadata.get("chunk_strategy"),
             "tokens": tokenize_for_search(chunk),
             "index_level": "chunk",
         }
@@ -260,13 +261,20 @@ class SemanticSearch:
         with open(self.metadata_path, 'wb') as f:
             pickle.dump(self.metadata, f)
 
-    def build_index(self, target_dir: Path, progress: Optional[Progress] = None, recursive: bool = True, exclude: Optional[List[str]] = None):
+    def build_index(
+        self,
+        target_dir: Path,
+        progress: Optional[Progress] = None,
+        recursive: bool = True,
+        exclude: Optional[List[str]] = None,
+        chunk_strategy: str = "recursive",
+    ):
         if self.model is None or faiss is None or self.index is None:
             logging.error("Cannot build index without sentence-transformers and faiss-cpu.")
             return
 
         excluded = {f".{e.lstrip('.').lower()}" for e in (exclude or [])}
-        ingestor = Ingestor(use_state=False)
+        ingestor = Ingestor(use_state=False, chunk_strategy=chunk_strategy)
         documents = list(ingestor.run(target_dir, recursive=recursive))
         task = progress.add_task("[cyan]Indexing chunks for semantic search...", total=len(documents)) if progress else None
         indexable_documents = []

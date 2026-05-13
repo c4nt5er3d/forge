@@ -45,6 +45,27 @@ Closing paragraph with enough words to be its own chunk."""
     assert any("| Name | Value |" in chunk and "| Alpha | 1 |" in chunk for chunk in chunks)
 
 
+def test_chunker_supports_named_strategies():
+    text = "First sentence. Second sentence has more detail.\n\nThird paragraph is separate."
+
+    paragraph_chunks = chunk_text(text, max_chars=200, strategy="paragraph")
+    sentence_chunks = chunk_text(text, max_chars=45, strategy="sentence")
+    token_chunks = chunk_text(text, max_chars=30, strategy="token")
+
+    assert paragraph_chunks == [text]
+    assert any(chunk.startswith("First sentence.") for chunk in sentence_chunks)
+    assert len(token_chunks) > 1
+
+
+def test_chunker_rejects_unknown_strategy():
+    try:
+        chunk_text("hello", strategy="mystery")
+    except ValueError as exc:
+        assert "Unknown chunk strategy" in str(exc)
+    else:
+        raise AssertionError("unknown chunk strategy should fail")
+
+
 def test_validator_records_quality_and_errors(tmp_path):
     file_path = tmp_path / "empty.txt"
     file_path.write_text("")
@@ -154,6 +175,21 @@ def plan():
     assert any("| Task | Owner |" in chunk for chunk in docs[0].chunks)
 
 
+def test_ingestor_records_selected_chunk_strategy(tmp_path):
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("First sentence. Second sentence. Third sentence with planning context.")
+    ingestor = Ingestor(
+        state_manager=StateManager(tmp_path / "state.db"),
+        chunk_strategy="sentence",
+        max_chunk_chars=35,
+    )
+
+    docs = list(ingestor.run(file_path))
+
+    assert docs[0].metadata["chunk_strategy"] == "sentence"
+    assert len(docs[0].chunks) > 1
+
+
 def test_ingest_cli_writes_jsonl(tmp_path):
     runner = CliRunner()
     source = tmp_path / "source"
@@ -168,6 +204,44 @@ def test_ingest_cli_writes_jsonl(tmp_path):
     lines = output.read_text().splitlines()
     assert len(lines) == 1
     assert json.loads(lines[0])["filename"] == "notes.txt"
+
+
+def test_ingest_cli_accepts_chunk_strategy(tmp_path):
+    runner = CliRunner()
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("First sentence. Second sentence. Third sentence with planning context.")
+    output = tmp_path / "out.jsonl"
+    state = tmp_path / "state.db"
+
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            str(file_path),
+            "--output",
+            str(output),
+            "--state",
+            str(state),
+            "--chunk-strategy",
+            "sentence",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(output.read_text())
+    assert payload["metadata"]["chunk_strategy"] == "sentence"
+
+
+def test_chunk_cli_reports_counts(tmp_path):
+    runner = CliRunner()
+    file_path = tmp_path / "notes.txt"
+    file_path.write_text("First sentence. Second sentence. Third sentence with planning context.")
+
+    result = runner.invoke(app, ["chunk", str(file_path), "--strategy", "sentence", "--max-chars", "35"])
+
+    assert result.exit_code == 0
+    assert "strategy:" in result.output
+    assert "notes.txt" in result.output
 
 
 def test_validate_and_doctor_cli_smoke(tmp_path):

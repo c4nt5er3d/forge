@@ -18,6 +18,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `forge index --from-jsonl` for indexing existing Document JSONL output.
 - `forge search --explain` for dense score, BM25 score, matched terms, tags, and chunk details.
 - `forge doctor` index diagnostics for vector/metadata count, chunk records, legacy records, and count mismatches.
+- Configurable chunking strategies: `recursive`, `paragraph`, `sentence`, and `token`.
+- `forge chunk` for previewing chunk counts without writing JSONL.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.
@@ -25,6 +27,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Text pipeline extraction attempts charset detection before reporting encoding failures.
 - `forge ingest` now normalizes extracted text and adds basic enrichment metadata.
 - `forge train` now reports category counts and warns when categories have very few examples.
+- `forge ingest`, `forge validate`, and folder-based `forge index` accept chunk strategy options.
 
 ## [0.1.0] - 2026-05-11
 

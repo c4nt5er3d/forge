@@ -111,10 +111,14 @@ forge search "tax forms from last year" --explain
 
 # Extract files into Document JSONL without moving originals
 forge ingest <folder> --output output.jsonl --recursive
+forge ingest <folder> --chunk-strategy sentence --output output.jsonl
 
 # Check extraction health and local optional dependencies
 forge validate <folder> --recursive
 forge doctor
+
+# Preview chunking without writing JSONL
+forge chunk <folder> --strategy paragraph|sentence|token|recursive
 
 # Report duplicate extracted documents without deleting files
 forge clean <folder> --dupes --recursive
@@ -124,7 +128,7 @@ forge clean <folder> --dupes --recursive
 
 `forge ingest` is the Phase 1 pipeline foundation. It emits one JSON object per line with stable file metadata, extracted content, chunks, a quality score, a cleaning log, and an explicit `extraction_error` when a file cannot produce usable text.
 
-The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. `forge index` now uses the ingest pipeline and indexes document chunks with metadata such as document ID, chunk ID, tags, and quality score. FAISS remains the semantic search backend for now; search fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
+The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. `forge ingest`, `forge validate`, and `forge index` support configurable chunking strategies: `recursive`, `paragraph`, `sentence`, and `token`. `forge index` uses the ingest pipeline and indexes document chunks with metadata such as document ID, chunk ID, tags, quality score, and chunk strategy. FAISS remains the semantic search backend for now; search fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
 
 ## Optional AI
 

@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from src.schema.document import Document
@@ -61,48 +62,78 @@ def _split_text_preserving_blocks(text: str) -> List[str]:
     return [block for block in blocks if block]
 
 
-def chunk_text(text: str, max_chars: int = 1000) -> List[str]:
+STRATEGIES = {"recursive", "paragraph", "sentence", "token"}
+
+
+def _split_words_to_limit(text: str, max_chars: int) -> List[str]:
+    chunks: List[str] = []
+    words = text.split()
+    current_words: List[str] = []
+    current_len = 0
+    for word in words:
+        next_len = current_len + len(word) + (1 if current_words else 0)
+        if current_words and next_len > max_chars:
+            chunks.append(" ".join(current_words))
+            current_words = [word]
+            current_len = len(word)
+        else:
+            current_words.append(word)
+            current_len = next_len
+    if current_words:
+        chunks.append(" ".join(current_words))
+    return chunks
+
+
+def _is_atomic_block(block: str) -> bool:
+    return block.lstrip().startswith("```") or all(_is_table_line(line) for line in block.splitlines())
+
+
+def _sentence_units(block: str) -> List[str]:
+    return [unit.strip() for unit in re.split(r"(?<=[.!?])\s+", block.strip()) if unit.strip()]
+
+
+def _units_for_strategy(block: str, strategy: str) -> List[str]:
+    if strategy in {"recursive", "paragraph"}:
+        return [block]
+    if strategy == "sentence":
+        return _sentence_units(block)
+    if strategy == "token":
+        return _split_words_to_limit(block, max_chars=250)
+    raise ValueError(f"Unknown chunk strategy: {strategy}")
+
+
+def chunk_text(text: str, max_chars: int = 1000, strategy: str = "recursive") -> List[str]:
     if not text:
         return []
+    if strategy not in STRATEGIES:
+        raise ValueError(f"Unknown chunk strategy: {strategy}")
 
     chunks: List[str] = []
     pending = ""
 
     for block in _split_text_preserving_blocks(text):
-        is_atomic = block.lstrip().startswith("```") or all(_is_table_line(line) for line in block.splitlines())
-        if is_atomic:
+        if _is_atomic_block(block):
             if pending:
                 chunks.append(pending.strip())
                 pending = ""
             chunks.append(block)
             continue
 
-        if len(block) > max_chars:
-            if pending:
-                chunks.append(pending.strip())
-                pending = ""
-            words = block.split()
-            current_words: List[str] = []
-            current_len = 0
-            for word in words:
-                next_len = current_len + len(word) + (1 if current_words else 0)
-                if current_words and next_len > max_chars:
-                    chunks.append(" ".join(current_words))
-                    current_words = [word]
-                    current_len = len(word)
-                else:
-                    current_words.append(word)
-                    current_len = next_len
-            if current_words:
-                chunks.append(" ".join(current_words))
-            continue
+        for unit in _units_for_strategy(block, strategy):
+            if len(unit) > max_chars:
+                if pending:
+                    chunks.append(pending.strip())
+                    pending = ""
+                chunks.extend(_split_words_to_limit(unit, max_chars=max_chars))
+                continue
 
-        candidate = f"{pending}\n\n{block}".strip() if pending else block
-        if pending and len(candidate) > max_chars:
-            chunks.append(pending.strip())
-            pending = block
-        else:
-            pending = candidate
+            separator = " " if strategy == "sentence" else "\n\n"
+            candidate = f"{pending}{separator}{unit}".strip() if pending else unit
+            if pending and len(candidate) > max_chars:
+                chunks.append(pending.strip())
+                pending = unit
+            else:
+                pending = candidate
 
     if pending:
         chunks.append(pending.strip())
@@ -110,6 +141,7 @@ def chunk_text(text: str, max_chars: int = 1000) -> List[str]:
     return chunks
 
 
-def chunk_document(document: Document, max_chars: int = 1000) -> Document:
-    document.chunks = chunk_text(document.content, max_chars=max_chars)
+def chunk_document(document: Document, max_chars: int = 1000, strategy: str = "recursive") -> Document:
+    document.chunks = chunk_text(document.content, max_chars=max_chars, strategy=strategy)
+    document.metadata["chunk_strategy"] = strategy
     return document

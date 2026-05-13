@@ -193,7 +193,8 @@ def ingest_command(
     target: Path = typer.Argument(..., help="File or folder to ingest"),
     output: Path = typer.Option(Path("output.jsonl"), "--output", "-o", help="JSONL output path"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
-    state: Optional[Path] = typer.Option(None, "--state", help="SQLite state database path")
+    state: Optional[Path] = typer.Option(None, "--state", help="SQLite state database path"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy: recursive, paragraph, sentence, token")
 ) -> None:
     """Extract files into Document JSONL without moving source files."""
     setup_logging()
@@ -205,7 +206,10 @@ def ingest_command(
     from src.state_manager import StateManager
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    ingestor = Ingestor(state_manager=StateManager(state) if state else None)
+    ingestor = Ingestor(
+        state_manager=StateManager(state) if state else None,
+        chunk_strategy=chunk_strategy,
+    )
     written = 0
     with open(output, "w", encoding="utf-8") as jsonl:
         for document in ingestor.run(target.resolve(), recursive=recursive):
@@ -217,7 +221,8 @@ def ingest_command(
 @app.command(name="validate")
 def validate_command(
     target: Path = typer.Argument(..., help="File or folder to validate"),
-    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories")
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy: recursive, paragraph, sentence, token")
 ) -> None:
     """Validate extraction quality without moving files or updating ingest state."""
     setup_logging()
@@ -229,7 +234,11 @@ def validate_command(
     from src.state_manager import StateManager
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        ingestor = Ingestor(state_manager=StateManager(Path(temp_dir) / "state.db"), use_state=False)
+        ingestor = Ingestor(
+            state_manager=StateManager(Path(temp_dir) / "state.db"),
+            chunk_strategy=chunk_strategy,
+            use_state=False,
+        )
         docs = list(ingestor.run(target.resolve(), recursive=recursive))
     failures = [doc for doc in docs if doc.extraction_error]
 
@@ -315,12 +324,45 @@ def clean_command(
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]documents scanned:[/#888888] [#ffffff]{len(docs)}[/#ffffff]")
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]duplicates found:[/#888888] [#ffffff]{duplicate_count}[/#ffffff]")
 
+@app.command(name="chunk")
+def chunk_command(
+    target: Path = typer.Argument(..., help="File or folder to chunk"),
+    strategy: str = typer.Option("recursive", "--strategy", help="Chunk strategy: recursive, paragraph, sentence, token"),
+    max_chars: int = typer.Option(1000, "--max-chars", help="Maximum characters per chunk"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories")
+) -> None:
+    """Preview chunk counts using a named chunking strategy."""
+    setup_logging()
+    if not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+
+    from src.pipeline.ingest import Ingestor
+    from src.state_manager import StateManager
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        ingestor = Ingestor(
+            state_manager=StateManager(Path(temp_dir) / "state.db"),
+            max_chunk_chars=max_chars,
+            chunk_strategy=strategy,
+            use_state=False,
+        )
+        docs = list(ingestor.run(target.resolve(), recursive=recursive))
+
+    console.print(f"  [#e8550a]›[/#e8550a] [#888888]strategy:[/#888888] [#ffffff]{strategy}[/#ffffff]")
+    for doc in docs:
+        if doc.extraction_error:
+            console.print(f"    [yellow]{doc.filename}[/yellow]: {doc.extraction_error}")
+        else:
+            console.print(f"    [#f5a623]{doc.filename}[/#f5a623]: [#ffffff]{len(doc.chunks)}[/#ffffff] chunks")
+
 @app.command(name="index")
 def index_command(
     target: Optional[Path] = typer.Argument(None, help="Folder to index"),
     from_jsonl: Optional[Path] = typer.Option(None, "--from-jsonl", help="Index existing Document JSONL"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
     exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy for folder indexing"),
     env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
     """Index files for semantic search."""
@@ -348,7 +390,13 @@ def index_command(
         if from_jsonl is not None:
             indexed = searcher.build_index_from_jsonl(from_jsonl, progress)
         else:
-            indexed = searcher.build_index(target, progress, recursive=recursive, exclude=exclude or [])
+            indexed = searcher.build_index(
+                target,
+                progress,
+                recursive=recursive,
+                exclude=exclude or [],
+                chunk_strategy=chunk_strategy,
+            )
     console.print(f"\n  [#28c840]Indexing complete.[/#28c840] [#ffffff]{indexed or 0}[/#ffffff] chunks indexed. You can now use 'forge search'.\n")
 
 @app.command(name="search")

@@ -46,11 +46,12 @@ def test_index_command_uses_current_positional_cli(tmp_path, monkeypatch):
     target.mkdir()
 
     class FakeSearch:
-        def build_index(self, target_dir, progress=None, recursive=True, exclude=None):
+        def build_index(self, target_dir, progress=None, recursive=True, exclude=None, chunk_strategy="recursive"):
             assert target_dir == target
             assert progress is not None
             assert recursive is False
             assert exclude == []
+            assert chunk_strategy == "recursive"
 
     monkeypatch.setattr("src.search.SemanticSearch", lambda: FakeSearch())
     result = runner.invoke(app, ["index", str(target)])
