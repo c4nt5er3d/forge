@@ -1,0 +1,12 @@
+name: summary
+description: Produce a concise local document summary.
+output_format: markdown
+post_process: text
+prompt: |
+  Summarize this local document in 5 bullet points.
+
+  Filename: {filename}
+  Tags: {metadata.tags}
+
+  Content:
+  {content}

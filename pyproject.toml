@@ -13,7 +13,8 @@ dependencies = [
     "rich",
     "watchdog",
     "pydantic",
-    "charset_normalizer"
+    "charset_normalizer",
+    "PyYAML"
 ]
 
 [project.optional-dependencies]
@@ -29,7 +30,8 @@ ai = [
     "ollama",
     "pytesseract",
     "Pillow",
-    "PyPDF2"
+    "PyPDF2",
+    "pyarrow"
 ]
 full = [
     "scikit-learn",
@@ -41,7 +43,8 @@ full = [
     "ollama",
     "pytesseract",
     "Pillow",
-    "PyPDF2"
+    "PyPDF2",
+    "pyarrow"
 ]
 dev = [
     "pytest",
@@ -55,7 +58,8 @@ dev = [
     "ollama",
     "pytesseract",
     "Pillow",
-    "PyPDF2"
+    "PyPDF2",
+    "pyarrow"
 ]
 
 [tool.ruff]

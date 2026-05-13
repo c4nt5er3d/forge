@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import json
 import shutil
 import sys
 import tempfile
@@ -30,6 +31,8 @@ app = typer.Typer(
     no_args_is_help=False,
     context_settings={"help_option_names": ["--help", "-h"]}
 )
+template_app = typer.Typer(help="Manage local transform templates.")
+app.add_typer(template_app, name="template")
 
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):
@@ -40,6 +43,14 @@ def main_callback(ctx: typer.Context):
         print_custom_help()
 
 console = Console()
+
+
+def _default_export_output(export_format: str) -> Path:
+    if export_format == "markdown":
+        return Path("export.md")
+    if export_format == "rag":
+        return Path("rag_bundle")
+    return Path(f"export.{export_format}")
 
 def _run_organize(
     target: Optional[str],
@@ -365,6 +376,104 @@ def chunk_command(
             console.print(f"    [yellow]{doc.filename}[/yellow]: {doc.extraction_error}")
         else:
             console.print(f"    [#f5a623]{doc.filename}[/#f5a623]: [#ffffff]{len(doc.chunks)}[/#ffffff] chunks")
+
+@app.command(name="export")
+def export_command(
+    target: Optional[Path] = typer.Argument(None, help="File or folder to export"),
+    export_format: str = typer.Option("jsonl", "--format", "-f", help="jsonl, csv, markdown, parquet, or rag"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Export output path"),
+    from_jsonl: Optional[Path] = typer.Option(None, "--from-jsonl", help="Export existing Document JSONL"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy for folder export")
+) -> None:
+    """Export Document records to local files."""
+    setup_logging()
+    if target is None and from_jsonl is None:
+        console.print("  [bold red]Error:[/bold red] Provide a file/folder or --from-jsonl.")
+        raise typer.Exit(1)
+    if target is not None and not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+    if from_jsonl is not None and not from_jsonl.exists():
+        console.print(f"  [bold red]Error:[/bold red] JSONL file does not exist: {from_jsonl}")
+        raise typer.Exit(1)
+
+    from src.exporters import export_documents, load_documents
+
+    output_path = output or _default_export_output(export_format)
+    try:
+        documents = load_documents(
+            target=target,
+            from_jsonl=from_jsonl,
+            recursive=recursive,
+            chunk_strategy=chunk_strategy,
+        )
+        export_documents(documents, output_path, export_format)
+    except Exception as e:
+        console.print(f"  [bold red]Export failed:[/bold red] [red]{e}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Export complete:[/#28c840] [#ffffff]{len(documents)}[/#ffffff] documents -> [#ffffff]{output_path}[/#ffffff]")
+
+@app.command(name="transform")
+def transform_command(
+    target: Optional[Path] = typer.Argument(None, help="File or folder to transform"),
+    template: str = typer.Option(..., "--template", "-t", help="Template name"),
+    output: Path = typer.Option(Path("transform.jsonl"), "--output", "-o", help="Transform output JSONL path"),
+    from_jsonl: Optional[Path] = typer.Option(None, "--from-jsonl", help="Transform existing Document JSONL"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
+    chunk_strategy: str = typer.Option("recursive", "--chunk-strategy", help="Chunk strategy for folder transform"),
+    local: bool = typer.Option(False, "--local", "-l", help="Run template prompt through local Ollama"),
+    ollama_model: str = typer.Option("llama3.2", "--ollama-model", help="Ollama model for local transform")
+) -> None:
+    """Apply a local YAML template to Document records."""
+    setup_logging()
+    if target is None and from_jsonl is None:
+        console.print("  [bold red]Error:[/bold red] Provide a file/folder or --from-jsonl.")
+        raise typer.Exit(1)
+    if target is not None and not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+    if from_jsonl is not None and not from_jsonl.exists():
+        console.print(f"  [bold red]Error:[/bold red] JSONL file does not exist: {from_jsonl}")
+        raise typer.Exit(1)
+
+    from src.exporters import load_documents
+    from src.transform import TemplateEngine
+
+    try:
+        documents = load_documents(
+            target=target,
+            from_jsonl=from_jsonl,
+            recursive=recursive,
+            chunk_strategy=chunk_strategy,
+        )
+        engine = TemplateEngine()
+        results = engine.transform(documents, template, use_ollama=local, model=ollama_model)
+    except Exception as e:
+        console.print(f"  [bold red]Transform failed:[/bold red] [red]{e}[/red]")
+        raise typer.Exit(1)
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        "\n".join(json.dumps(result, ensure_ascii=False) for result in results) + "\n",
+        encoding="utf-8",
+    )
+    mode = "local Ollama" if local else "rendered prompts"
+    console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Transform complete:[/#28c840] [#ffffff]{len(results)}[/#ffffff] records ({mode}) -> [#ffffff]{output}[/#ffffff]")
+
+@template_app.command(name="list")
+def template_list_command() -> None:
+    """List installed local transform templates."""
+    from src.transform import TemplateEngine
+
+    engine = TemplateEngine()
+    templates = engine.list_templates()
+    if not templates:
+        console.print("  [yellow]No templates found.[/yellow]")
+        return
+    for name in templates:
+        console.print(f"  [#e8550a]›[/#e8550a] [#ffffff]{name}[/#ffffff]")
 
 @app.command(name="index")
 def index_command(

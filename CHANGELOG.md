@@ -24,6 +24,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Optional local CrossEncoder reranking with `forge search --rerank`.
 - Optional local Ollama HyDE query rewriting with `forge search --hyde --local`.
 - Context-compressed search snippets with `forge search --compress`.
+- Local exporters with `forge export` for JSONL, CSV, Markdown, optional Parquet, and RAG bundle output.
+- Local YAML template transform engine with `forge transform`.
+- Built-in `summary` and `flashcards` templates plus `forge template list`.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.

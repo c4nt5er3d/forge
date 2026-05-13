@@ -1,0 +1,13 @@
+name: flashcards
+description: Extract concise Q&A flashcards from a document.
+output_format: json
+post_process: json_parse
+prompt: |
+  Create up to 10 study flashcards from this local document.
+  Return only valid JSON as an array of {"question": "...", "answer": "..."} objects.
+
+  Filename: {filename}
+  Tags: {metadata.tags}
+
+  Content:
+  {content}

@@ -126,6 +126,16 @@ forge chunk <folder> --strategy paragraph|sentence|token|recursive
 # Report duplicate extracted documents without deleting files
 forge clean <folder> --dupes --recursive
 forge clean <folder> --dupes --semantic --threshold 0.97
+
+# Export Document records
+forge export <folder> --format jsonl --output docs.jsonl --recursive
+forge export --from-jsonl docs.jsonl --format markdown --output docs.md
+forge export --from-jsonl docs.jsonl --format rag --output rag_bundle
+
+# Apply local YAML templates
+forge template list
+forge transform --from-jsonl docs.jsonl --template summary --output summary.jsonl
+forge transform <folder> --template flashcards --local --output flashcards.jsonl
 ```
 
 ## Document Pipeline
@@ -135,6 +145,12 @@ forge clean <folder> --dupes --semantic --threshold 0.97
 The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. `forge ingest`, `forge validate`, and `forge index` support configurable chunking strategies: `recursive`, `paragraph`, `sentence`, and `token`. `forge index` uses the ingest pipeline and indexes document chunks with metadata such as document ID, chunk ID, tags, quality score, and chunk strategy. FAISS remains the semantic search backend for now; search fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
 
 Optional Phase 2 intelligence features stay local-first: `forge clean --dupes --semantic` uses local embeddings for near-duplicate reports, `forge search --rerank` uses a local CrossEncoder when the model is available, and `forge search --hyde --local` uses local Ollama to rewrite a query before retrieval. `forge search --compress` trims snippets down to the most query-relevant sentences without any model call.
+
+## Export and Templates
+
+`forge export` writes Document records to local formats: JSONL, CSV, Markdown, optional Parquet, or a small RAG bundle directory with `documents.jsonl` and `manifest.json`.
+
+`forge transform` applies YAML templates from built-in templates or `~/.forge/templates`. By default it renders prompts locally without calling a model. Add `--local` to run the rendered prompt through local Ollama. No cloud API is used by the core transform engine.
 
 ## Optional AI
 
