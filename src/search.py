@@ -308,7 +308,35 @@ class SemanticSearch:
             status["counts_match"] = self.index.ntotal == status["metadata_count"]
         return status
 
-    def search(self, query: str, top_k: int = 3) -> List[Tuple[Dict[str, Any], float]]:
+    def _rerank_results(self, query: str, results: List[Tuple[Dict[str, Any], float]]) -> List[Tuple[Dict[str, Any], float]]:
+        if not results:
+            return results
+        try:
+            from sentence_transformers import CrossEncoder
+        except ImportError:
+            return results
+
+        try:
+            reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            pairs = [(query, metadata.get("snippet", "")) for metadata, _score in results]
+            raw_scores = reranker.predict(pairs)
+        except Exception as e:
+            logging.error(f"Reranking failed: {e}")
+            return results
+
+        min_score = float(min(raw_scores)) if len(raw_scores) else 0.0
+        max_score = float(max(raw_scores)) if len(raw_scores) else 0.0
+        spread = max_score - min_score
+        reranked = []
+        for (metadata, fallback_score), raw_score in zip(results, raw_scores):
+            normalized = 1.0 if spread == 0 else (float(raw_score) - min_score) / spread
+            meta = dict(metadata)
+            meta["_rerank_score"] = normalized
+            meta["_rerank_raw_score"] = float(raw_score)
+            reranked.append((meta, normalized if spread else fallback_score))
+        return sorted(reranked, key=lambda item: item[1], reverse=True)
+
+    def search(self, query: str, top_k: int = 3, rerank: bool = False) -> List[Tuple[Dict[str, Any], float]]:
         # Fuse dense vector retrieval with lightweight lexical BM25 scoring.
         if self.index is None or self.index.ntotal == 0 or self.model is None:
             return []
@@ -345,5 +373,7 @@ class SemanticSearch:
             ]
             fused.append((meta, score))
 
-        results = sorted(fused, key=lambda item: item[1], reverse=True)[:top_k]
-        return results
+        results = sorted(fused, key=lambda item: item[1], reverse=True)
+        if rerank:
+            results = self._rerank_results(query, results)
+        return results[:top_k]

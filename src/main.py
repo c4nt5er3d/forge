@@ -300,6 +300,8 @@ def doctor_command() -> None:
 def clean_command(
     target: Path = typer.Argument(..., help="File or folder to inspect"),
     dupes: bool = typer.Option(False, "--dupes", help="Report duplicate extracted documents"),
+    semantic: bool = typer.Option(False, "--semantic", help="Use embedding similarity for near-duplicate reporting"),
+    threshold: float = typer.Option(0.97, "--threshold", help="Semantic duplicate cosine threshold"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories")
 ) -> None:
     """Inspect clean-up opportunities without deleting files."""
@@ -311,7 +313,7 @@ def clean_command(
         console.print("  [yellow]No clean mode selected. Try --dupes.[/yellow]")
         return
 
-    from src.intelligence.dedup import dedup_documents
+    from src.intelligence.dedup import dedup_documents, semantic_duplicate_clusters
     from src.pipeline.ingest import Ingestor
     from src.state_manager import StateManager
 
@@ -319,10 +321,18 @@ def clean_command(
         ingestor = Ingestor(state_manager=StateManager(Path(temp_dir) / "state.db"), use_state=False)
         docs = [doc for doc in ingestor.run(target.resolve(), recursive=recursive) if doc.content]
 
-    deduped = dedup_documents(docs)
-    duplicate_count = len(docs) - len(deduped)
+    if semantic:
+        clusters = semantic_duplicate_clusters(docs, threshold=threshold)
+        duplicate_count = sum(len(cluster.duplicates) for cluster in clusters)
+    else:
+        clusters = []
+        deduped = dedup_documents(docs)
+        duplicate_count = len(docs) - len(deduped)
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]documents scanned:[/#888888] [#ffffff]{len(docs)}[/#ffffff]")
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]duplicates found:[/#888888] [#ffffff]{duplicate_count}[/#ffffff]")
+    for cluster in clusters[:10]:
+        duplicate_names = ", ".join(doc.filename for doc in cluster.duplicates)
+        console.print(f"    [#f5a623]keep[/#f5a623] {cluster.kept.filename} [#888888]<-[/#888888] {duplicate_names} [dim]({cluster.score:.2f})[/dim]")
 
 @app.command(name="chunk")
 def chunk_command(
@@ -403,7 +413,8 @@ def index_command(
 def search_command(
     query: str = typer.Argument(..., help="Natural language search query"),
     limit: int = typer.Option(3, "--limit", "-n", help="Number of results to return"),
-    explain: bool = typer.Option(False, "--explain", help="Show dense, BM25, chunk, and matched-term details")
+    explain: bool = typer.Option(False, "--explain", help="Show dense, BM25, chunk, and matched-term details"),
+    rerank: bool = typer.Option(False, "--rerank", help="Use optional local CrossEncoder reranking")
 ) -> None:
     """
     Search for files using natural language (e.g. 'tax forms from last year').
@@ -414,7 +425,7 @@ def search_command(
     try:
         from src.search import SemanticSearch
         searcher = SemanticSearch()
-        results = searcher.search(query, limit)
+        results = searcher.search(query, limit, rerank=rerank)
         
         if not results:
             console.print("  [yellow]No matches found or index is empty. Run 'forge index' first![/yellow]")
@@ -437,6 +448,8 @@ def search_command(
                 terms = ", ".join(metadata.get("_matched_terms", [])) or "none"
                 tags = ", ".join(metadata.get("tags", [])) or "none"
                 console.print(f"    [#888888]dense:[/#888888] {dense:.2f}  [#888888]bm25:[/#888888] {bm25:.2f}  [#888888]matched:[/#888888] {terms}")
+                if "_rerank_score" in metadata:
+                    console.print(f"    [#888888]rerank:[/#888888] {metadata['_rerank_score']:.2f}")
                 console.print(f"    [#888888]tags:[/#888888] {tags}")
             snippet_panel = Panel(
                 Text(f"\"{metadata['snippet']}\"", style="dim"),

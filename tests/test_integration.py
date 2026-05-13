@@ -79,7 +79,7 @@ def test_search_command_explain_prints_score_parts(monkeypatch):
     runner = CliRunner()
 
     class FakeSearch:
-        def search(self, query, limit):
+        def search(self, query, limit, rerank=False):
             return [({
                 "name": "notes.txt",
                 "path": "/tmp/notes.txt",

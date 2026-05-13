@@ -20,6 +20,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - `forge doctor` index diagnostics for vector/metadata count, chunk records, legacy records, and count mismatches.
 - Configurable chunking strategies: `recursive`, `paragraph`, `sentence`, and `token`.
 - `forge chunk` for previewing chunk counts without writing JSONL.
+- Semantic duplicate reporting with `forge clean --dupes --semantic`.
+- Optional local CrossEncoder reranking with `forge search --rerank`.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.

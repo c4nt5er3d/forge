@@ -32,6 +32,17 @@ class CountingEmbeddingModel:
                 vectors.append([0.0, 0.0, 1.0])
         return np.array(vectors, dtype="float32")
 
+
+class FakeCrossEncoder:
+    def __init__(self, _model_name):
+        pass
+
+    def predict(self, pairs):
+        return np.array([
+            10.0 if "roadmap" in passage.lower() else 1.0
+            for _query, passage in pairs
+        ], dtype="float32")
+
 def test_ml_predict_returns_none_without_model():
     # Mocking model path to a non-existent file
     clf = MLClassifier(model_path=Path("/nonexistent/model.joblib"))
@@ -143,6 +154,37 @@ def test_index_records_selected_chunk_strategy(tmp_path):
 
     assert indexed == 1
     assert results[0][0]["chunk_strategy"] == "sentence"
+
+def test_search_rerank_reorders_candidates(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "budget.txt").write_text("Budget planning notes for approvals.")
+    (source / "roadmap.txt").write_text("Roadmap delivery notes for milestones.")
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model), \
+         patch('sentence_transformers.CrossEncoder', FakeCrossEncoder):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        searcher.build_index(source)
+        results = searcher.search("budget planning", top_k=2, rerank=True)
+
+    assert results[0][0]["name"] == "roadmap.txt"
+    assert "_rerank_score" in results[0][0]
+
+def test_search_rerank_falls_back_when_crossencoder_missing(tmp_path):
+    model = CountingEmbeddingModel()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "budget.txt").write_text("Budget planning notes for approvals.")
+
+    with patch('sentence_transformers.SentenceTransformer', return_value=model), \
+         patch('sentence_transformers.CrossEncoder', side_effect=ImportError):
+        searcher = SemanticSearch(index_dir=str(tmp_path / "index"))
+        searcher.build_index(source)
+        results = searcher.search("budget planning", top_k=1, rerank=True)
+
+    assert results[0][0]["name"] == "budget.txt"
+    assert "_rerank_score" not in results[0][0]
 
 def test_index_from_jsonl_indexes_document_chunks(tmp_path):
     model = CountingEmbeddingModel()
