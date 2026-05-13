@@ -24,6 +24,7 @@ The current branch includes:
 - Phase 3D dataset command
 - Evaluation layer: forge evaluate
 - Serve layer: local HTTP API
+- MCP adapter: local stdio tools
 
 The project remains local-first. Core behavior does not require cloud APIs or paid services.
 
@@ -384,6 +385,47 @@ What it does:
 - Reuses existing search, pack, dataset, and evaluate modules.
 - Does not expose cloud features or require API keys.
 
+### MCP Adapter
+
+Command:
+
+```bash
+forge mcp --allow-root /path/to/workspace
+```
+
+Optional dependency install:
+
+```bash
+python3 -m pip install -e ".[mcp]"
+```
+
+Tools:
+
+```text
+forge_health
+forge_search
+forge_pack
+forge_dataset
+forge_evaluate
+```
+
+What it does:
+
+- Runs a local MCP server over stdio.
+- Uses the same `ForgeService` layer and path allow-root checks as `forge serve`.
+- Keeps MCP dependencies optional under the `mcp` extra.
+- Lets MCP-capable clients connect to Forge without knowing the codebase internals.
+- Does not require cloud services or API keys.
+
+Example MCP client command shape:
+
+```json
+{
+  "command": "forge",
+  "args": ["mcp", "--allow-root", "/path/to/workspace"]
+}
+```
+
 ## Key Files
 
 Pipeline:
@@ -412,6 +454,7 @@ Export and transform:
 src/exporters/base.py
 src/dataset.py
 src/evaluate.py
+src/mcp_server.py
 src/pack.py
 src/server.py
 src/transform/engine.py
@@ -435,6 +478,7 @@ tests/test_integration.py
 tests/test_export_transform.py
 tests/test_dataset.py
 tests/test_evaluate.py
+tests/test_mcp_server.py
 tests/test_pack.py
 tests/test_server.py
 ```
@@ -525,12 +569,13 @@ Phase 3C: Token-aware context packs
 Phase 3D: Dataset command
 Evaluation layer: forge evaluate
 Serve layer: local HTTP API
+MCP adapter: local stdio tools
 ```
 
 Next likely roadmap items:
 
 ```text
-MCP adapter
+Release polish / version bump
 Later: ChromaDB migration if FAISS metadata/upsert becomes painful
 Much later: Forge Brain / LoRA fine-tuning
 ```
@@ -564,5 +609,5 @@ Exports:
 ## Suggested Next Work
 
 1. Push latest commits if not already pushed.
-2. Add MCP adapter on top of the `ForgeService` layer.
+2. Update release notes/version metadata for the completed pipeline stack.
 3. Consider ChromaDB only if FAISS metadata/upsert behavior becomes painful.

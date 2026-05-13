@@ -158,7 +158,7 @@ def create_app(service: Optional[ForgeService] = None):
         from fastapi import FastAPI, HTTPException
         from pydantic import BaseModel
     except ImportError as exc:
-        raise ImportError("fastapi is required for forge serve. Install with file-organizer[server].") from exc
+        raise ImportError("fastapi is required for forge serve. Install with file-organizer server extra.") from exc
 
     service = service or ForgeService()
     app = FastAPI(title="FORGE Local API", version="0.1.0")

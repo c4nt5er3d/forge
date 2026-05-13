@@ -86,6 +86,7 @@ docs/demo/forge-demo.gif
 - **Dataset builds**: Compose ingest, chunking, deduplication, and export into one local command.
 - **Retrieval evaluation**: Score local search quality with JSON/JSONL benchmark cases.
 - **Local HTTP API**: Serve search, pack, dataset, and evaluation workflows on localhost.
+- **MCP adapter**: Let MCP clients call Forge as local tools over stdio.
 - **Validation and doctor checks**: Inspect extraction issues and local dependency/index health.
 - **Local-first design**: Core commands run locally without cloud APIs.
 
@@ -153,6 +154,9 @@ forge evaluate eval_cases.jsonl --format markdown --output evaluation.md
 # Start local HTTP API
 forge serve --allow-root /path/to/workspace
 
+# Start local MCP server over stdio
+forge mcp --allow-root /path/to/workspace
+
 # Apply local YAML templates
 forge template list
 forge transform --from-jsonl docs.jsonl --template summary --output summary.jsonl
@@ -206,6 +210,33 @@ Available endpoints:
 - `POST /pack`
 - `POST /dataset`
 - `POST /evaluate`
+
+## MCP
+
+`forge mcp` starts a local MCP server over stdio so MCP clients can call Forge tools. It uses the same `ForgeService` path allow-root checks as the HTTP API.
+
+Install optional MCP dependencies first:
+
+```bash
+python3 -m pip install -e ".[mcp]"
+```
+
+Exposed tools:
+
+- `forge_health`
+- `forge_search`
+- `forge_pack`
+- `forge_dataset`
+- `forge_evaluate`
+
+Example client command:
+
+```json
+{
+  "command": "forge",
+  "args": ["mcp", "--allow-root", "/path/to/workspace"]
+}
+```
 
 ## Optional AI
 

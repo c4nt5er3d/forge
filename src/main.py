@@ -659,7 +659,7 @@ def serve_command(
     except ImportError as e:
         console.print(
             "  [bold red]Serve failed:[/bold red] "
-            "[red]Install server dependencies with `python3 -m pip install -e '.[server]'`.[/red]"
+            "[red]Install server dependencies with `python3 -m pip install -e '.\\[server]'`.[/red]"
         )
         console.print(f"  [dim]{e}[/dim]")
         raise typer.Exit(1)
@@ -676,6 +676,33 @@ def serve_command(
         + ", ".join(str(root.resolve()) for root in roots)
     )
     uvicorn.run(api, host=host, port=port, reload=reload)
+
+@app.command(name="mcp")
+def mcp_command(
+    allow_root: Optional[List[Path]] = typer.Option(None, "--allow-root", help="Allowed file root for MCP tool paths")
+) -> None:
+    """Start the local FORGE MCP server over stdio."""
+    setup_logging()
+    try:
+        from src.mcp_server import run_mcp_server
+    except ImportError as e:
+        console.print(
+            "  [bold red]MCP failed:[/bold red] "
+            "[red]Install MCP dependencies with `python3 -m pip install -e '.\\[mcp]'`.[/red]"
+        )
+        console.print(f"  [dim]{e}[/dim]")
+        raise typer.Exit(1)
+
+    roots = allow_root or [Path.cwd()]
+    try:
+        run_mcp_server(allowed_roots=roots)
+    except ImportError as e:
+        console.print(
+            "  [bold red]MCP failed:[/bold red] "
+            "[red]Install MCP dependencies with `python3 -m pip install -e '.\\[mcp]'`.[/red]"
+        )
+        console.print(f"  [dim]{e}[/dim]")
+        raise typer.Exit(1)
 
 @template_app.command(name="list")
 def template_list_command() -> None:

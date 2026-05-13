@@ -16,6 +16,7 @@ Public commands use positional paths:
 * `forge dataset --from-jsonl docs.jsonl [--format jsonl|csv|markdown|parquet|rag] [--output PATH]`
 * `forge evaluate eval_cases.json [--limit N] [--format json|markdown] [--output PATH]`
 * `forge serve [--host 127.0.0.1] [--port 8765] [--allow-root PATH]`
+* `forge mcp [--allow-root PATH]`
 * `forge undo [--preview] [--steps N]`
 
 The hidden `forge run` command remains available for older option-style scripts.
@@ -89,6 +90,16 @@ Provides the optional local HTTP API behind `forge serve`.
   Testable service layer for health, search, pack, dataset, and evaluate operations with path allow-root checks.
 * `create_app(service: Optional[ForgeService] = None)`
   Builds a FastAPI app when optional server dependencies are installed.
+
+### `src.mcp_server`
+Provides the optional MCP adapter behind `forge mcp`.
+
+* `ForgeMCPTools(service: ForgeService)`
+  Testable MCP tool wrapper exposing health, search, pack, dataset, and evaluate operations.
+* `create_mcp_server(service: Optional[ForgeService] = None)`
+  Builds a FastMCP server when optional MCP dependencies are installed.
+* `run_mcp_server(allowed_roots: Optional[Iterable[Path]] = None) -> None`
+  Runs the local MCP server over stdio.
 
 ### `src.utils`
 Utility and transaction history functions.

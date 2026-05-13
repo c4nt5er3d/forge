@@ -37,6 +37,9 @@ server = [
     "fastapi",
     "uvicorn"
 ]
+mcp = [
+    "mcp"
+]
 full = [
     "scikit-learn",
     "joblib",
@@ -50,7 +53,8 @@ full = [
     "PyPDF2",
     "pyarrow",
     "fastapi",
-    "uvicorn"
+    "uvicorn",
+    "mcp"
 ]
 dev = [
     "pytest",
@@ -67,7 +71,8 @@ dev = [
     "PyPDF2",
     "pyarrow",
     "fastapi",
-    "uvicorn"
+    "uvicorn",
+    "mcp"
 ]
 
 [tool.ruff]
