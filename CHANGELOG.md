@@ -14,12 +14,17 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Phase 2 local intelligence helpers for normalization, enrichment, and exact content deduplication.
 - Hybrid semantic search with FAISS dense retrieval fused with BM25-style lexical scoring.
 - Read-only `forge clean --dupes` duplicate report.
+- Pipeline-backed chunk indexing for `forge index`.
+- `forge index --from-jsonl` for indexing existing Document JSONL output.
+- `forge search --explain` for dense score, BM25 score, matched terms, tags, and chunk details.
+- `forge doctor` index diagnostics for vector/metadata count, chunk records, legacy records, and count mismatches.
 
 ### Changed
 - Semantic search metadata now persists normalized embeddings so clean index rebuilds do not re-encode every valid snippet.
 - Search query embeddings are normalized before FAISS lookup for consistent cosine-style scoring.
 - Text pipeline extraction attempts charset detection before reporting encoding failures.
 - `forge ingest` now normalizes extracted text and adds basic enrichment metadata.
+- `forge train` now reports category counts and warns when categories have very few examples.
 
 ## [0.1.0] - 2026-05-11
 

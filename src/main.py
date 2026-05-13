@@ -266,6 +266,12 @@ def doctor_command() -> None:
     checks.append(("FAISS index file", search_index.exists()))
     state_db = Path.home() / ".forge" / "state.db"
     checks.append(("Ingest state DB", state_db.exists()))
+    index_status = None
+    try:
+        from src.search import inspect_index_dir
+        index_status = inspect_index_dir()
+    except Exception:
+        index_status = None
 
     console.print("\n  [#444444]FORGE DOCTOR[/#444444]\n")
     for label, available in checks:
@@ -273,6 +279,12 @@ def doctor_command() -> None:
         console.print(f"  [#e8550a]›[/#e8550a] [#888888]{label}:[/#888888] {status}")
     console.print(f"\n  [#e8550a]›[/#e8550a] [#888888]search index:[/#888888] [#ffffff]{search_index.resolve()}[/#ffffff]")
     console.print(f"  [#e8550a]›[/#e8550a] [#888888]state db:[/#888888]     [#ffffff]{state_db}[/#ffffff]")
+    if index_status:
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]vectors:[/#888888]      [#ffffff]{index_status['vector_count']}[/#ffffff]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]metadata:[/#888888]     [#ffffff]{index_status['metadata_count']}[/#ffffff]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]chunk records:[/#888888] [#ffffff]{index_status['chunk_records']}[/#ffffff]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]legacy records:[/#888888] [#ffffff]{index_status['legacy_records']}[/#ffffff]")
+        console.print(f"  [#e8550a]›[/#e8550a] [#888888]counts match:[/#888888] [#ffffff]{index_status['counts_match']}[/#ffffff]")
     console.print("")
 
 @app.command(name="clean")
@@ -305,13 +317,24 @@ def clean_command(
 
 @app.command(name="index")
 def index_command(
-    target: Path = typer.Argument(..., help="Folder to index"),
+    target: Optional[Path] = typer.Argument(None, help="Folder to index"),
+    from_jsonl: Optional[Path] = typer.Option(None, "--from-jsonl", help="Index existing Document JSONL"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Include subdirectories"),
     exclude: Optional[List[str]] = typer.Option(None, "--exclude", "-e", help="Skip files"),
     env: str = typer.Option("default", "--env", help="Environment config")
 ) -> None:
     """Index files for semantic search."""
     setup_logging()
+    if target is None and from_jsonl is None:
+        console.print("  [bold red]Error:[/bold red] Provide a folder or --from-jsonl.")
+        raise typer.Exit(1)
+    if from_jsonl is not None and not from_jsonl.exists():
+        console.print(f"  [bold red]Error:[/bold red] JSONL file does not exist: {from_jsonl}")
+        raise typer.Exit(1)
+    if target is not None and not target.exists():
+        console.print(f"  [bold red]Error:[/bold red] Target does not exist: {target}")
+        raise typer.Exit(1)
+
     from src.search import SemanticSearch
     searcher = SemanticSearch()
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
@@ -322,13 +345,17 @@ def index_command(
         TaskProgressColumn(),
         console=console
     ) as progress:
-        searcher.build_index(target, progress, recursive=recursive, exclude=exclude or [])
-    console.print("\n  [#28c840]Indexing complete. You can now use 'forge search'.[/#28c840]\n")
+        if from_jsonl is not None:
+            indexed = searcher.build_index_from_jsonl(from_jsonl, progress)
+        else:
+            indexed = searcher.build_index(target, progress, recursive=recursive, exclude=exclude or [])
+    console.print(f"\n  [#28c840]Indexing complete.[/#28c840] [#ffffff]{indexed or 0}[/#ffffff] chunks indexed. You can now use 'forge search'.\n")
 
 @app.command(name="search")
 def search_command(
     query: str = typer.Argument(..., help="Natural language search query"),
-    limit: int = typer.Option(3, "--limit", "-n", help="Number of results to return")
+    limit: int = typer.Option(3, "--limit", "-n", help="Number of results to return"),
+    explain: bool = typer.Option(False, "--explain", help="Show dense, BM25, chunk, and matched-term details")
 ) -> None:
     """
     Search for files using natural language (e.g. 'tax forms from last year').
@@ -354,6 +381,15 @@ def search_command(
                 display_score = max(0, 1 - (distance ** 2) / 2)
             console.print(f"  [#e8550a]›[/#e8550a] [#f5a623]{metadata['name']}[/#f5a623] [#888888](Score: {display_score:.2f})[/#888888]")
             console.print(f"    [#5bc8f5]Path:[/#5bc8f5] [#ffffff]{metadata['path']}[/#ffffff]")
+            if metadata.get("index_level") == "chunk":
+                console.print(f"    [#5bc8f5]Chunk:[/#5bc8f5] [#ffffff]{metadata.get('chunk_index', 0) + 1}/{metadata.get('chunk_count', '?')}[/#ffffff]")
+            if explain:
+                dense = metadata.get("_dense_score", 0.0)
+                bm25 = metadata.get("_bm25_score", 0.0)
+                terms = ", ".join(metadata.get("_matched_terms", [])) or "none"
+                tags = ", ".join(metadata.get("tags", [])) or "none"
+                console.print(f"    [#888888]dense:[/#888888] {dense:.2f}  [#888888]bm25:[/#888888] {bm25:.2f}  [#888888]matched:[/#888888] {terms}")
+                console.print(f"    [#888888]tags:[/#888888] {tags}")
             snippet_panel = Panel(
                 Text(f"\"{metadata['snippet']}\"", style="dim"),
                 border_style="dim",

@@ -2,6 +2,7 @@ import os
 import re
 import joblib
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -81,6 +82,7 @@ class MLClassifier:
         
         texts: List[str] = []
         labels: List[str] = []
+        skipped = 0
 
         # Assuming subfolders are the category labels
         for category_folder in data_dir.iterdir():
@@ -88,14 +90,24 @@ class MLClassifier:
                 category = category_folder.name
                 for file_path in category_folder.rglob("*"):
                     if file_path.is_file() and not file_path.name.startswith("."):
-                        texts.append(self.extract_features(file_path, use_content=True))
-                        labels.append(category)
+                        features = self.extract_features(file_path, use_content=True)
+                        if features.strip():
+                            texts.append(features)
+                            labels.append(category)
+                        else:
+                            skipped += 1
 
         if not texts:
             console.print("  [yellow]No training data found in the provided directory.[/yellow]")
             return
 
-        console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Found {len(texts)} files[/#28c840] across [#ffffff]{len(set(labels))}[/#ffffff] categories.")
+        category_counts = Counter(labels)
+        console.print(f"  [#e8550a]›[/#e8550a] [#28c840]Found {len(texts)} files[/#28c840] across [#ffffff]{len(category_counts)}[/#ffffff] categories.")
+        if skipped:
+            console.print(f"  [#e8550a]›[/#e8550a] [#febc2e]Skipped:[/#febc2e] [#ffffff]{skipped}[/#ffffff] files with no usable features.")
+        for category, count in sorted(category_counts.items()):
+            warning = " [yellow](few examples)[/yellow]" if count < 2 else ""
+            console.print(f"    [#888888]{category}:[/#888888] [#ffffff]{count}[/#ffffff]{warning}")
         console.print("  [#e8550a]›[/#e8550a] [#5bc8f5]Training TF-IDF Vectorizer & MultinomialNB Model...[/#5bc8f5]")
 
         self.pipeline = Pipeline([

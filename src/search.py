@@ -3,13 +3,14 @@ import pickle
 import logging
 import re
 import math
+import json
 from collections import Counter
 from pathlib import Path
 from typing import Any, List, Dict, Tuple, Optional
 from rich.progress import Progress
 
-from src.llm import extract_text
-from src.utils import collect_files
+from src.pipeline.ingest import Ingestor
+from src.schema.document import Document
 
 try:
     import faiss
@@ -30,6 +31,40 @@ def clean_text_for_search(text: str) -> str:
 
 def tokenize_for_search(text: str) -> List[str]:
     return re.findall(r"[a-z0-9]{2,}", text.lower())
+
+def inspect_index_dir(index_dir: str = "models/search_index") -> Dict[str, Any]:
+    index_path = Path(index_dir) / "faiss.index"
+    metadata_path = Path(index_dir) / "metadata.pkl"
+    metadata: Dict[int, Dict[str, Any]] = {}
+    vector_count = 0
+
+    if metadata_path.exists():
+        try:
+            with open(metadata_path, 'rb') as f:
+                metadata = pickle.load(f)
+        except Exception:
+            metadata = {}
+
+    if faiss is not None and index_path.exists():
+        try:
+            vector_count = faiss.read_index(str(index_path)).ntotal
+        except Exception:
+            vector_count = 0
+
+    metadata_count = len(metadata)
+    chunk_count = sum(1 for meta in metadata.values() if meta.get("index_level") == "chunk")
+    old_count = metadata_count - chunk_count
+    missing_embeddings = sum(1 for meta in metadata.values() if "embedding" not in meta)
+    return {
+        "index_exists": index_path.exists(),
+        "metadata_exists": metadata_path.exists(),
+        "vector_count": vector_count,
+        "metadata_count": metadata_count,
+        "counts_match": vector_count == metadata_count,
+        "chunk_records": chunk_count,
+        "legacy_records": old_count,
+        "missing_embeddings": missing_embeddings,
+    }
 
 class SemanticSearch:
     def __init__(self, index_dir: str = "models/search_index"):
@@ -165,6 +200,59 @@ class SemanticSearch:
         self.metadata = valid_metadata
         self.save_index()
 
+    def _make_chunk_metadata(self, document: Document, chunk: str, chunk_index: int) -> Dict[str, Any]:
+        path = Path(document.source_path)
+        return {
+            "document_id": document.id,
+            "chunk_id": f"{document.id}:{chunk_index}",
+            "chunk_index": chunk_index,
+            "path": document.source_path,
+            "name": document.filename,
+            "extension": document.extension,
+            "snippet": chunk[:500].replace("\n", " ") + ("..." if len(chunk) > 500 else ""),
+            "hash": self._file_hash(path) if path.exists() else document.id,
+            "quality_score": document.quality_score,
+            "tags": document.metadata.get("tags", []),
+            "word_count": document.metadata.get("word_count", 0),
+            "chunk_count": len(document.chunks),
+            "tokens": tokenize_for_search(chunk),
+            "index_level": "chunk",
+        }
+
+    def _add_documents_to_index(self, documents: List[Document]) -> int:
+        if self.model is None or faiss is None or self.index is None:
+            logging.error("Cannot build index without sentence-transformers and faiss-cpu.")
+            return 0
+
+        new_embeddings = []
+        new_metadata: Dict[int, Dict[str, Any]] = {}
+        current_id = self.index.ntotal
+        indexed = 0
+
+        for document in documents:
+            if document.extraction_error or not document.content:
+                continue
+            chunks = document.chunks or [document.content]
+            for chunk_index, chunk in enumerate(chunks):
+                text = clean_text_for_search(chunk)
+                if not text:
+                    continue
+                embedding = self.model.encode([text])[0]
+                embedding = self._normalize_embedding(embedding)
+                metadata = self._make_chunk_metadata(document, text, chunk_index)
+                metadata["embedding"] = embedding.tolist()
+                new_embeddings.append(embedding)
+                new_metadata[current_id] = metadata
+                current_id += 1
+                indexed += 1
+
+        if new_embeddings:
+            embeddings_array = np.array(new_embeddings).astype('float32')
+            self.index.add(embeddings_array)
+            self.metadata.update(new_metadata)
+            self.save_index()
+        return indexed
+
     def save_index(self):
         if faiss is None or self.index is None:
             return
@@ -178,60 +266,39 @@ class SemanticSearch:
             return
 
         excluded = {f".{e.lstrip('.').lower()}" for e in (exclude or [])}
-        files = collect_files(target_dir, recursive=recursive)
-        if not files:
-            return
-
-        task = progress.add_task("[cyan]Indexing files for semantic search...", total=len(files)) if progress else None
-        
-        new_embeddings = []
-        new_metadata = {}
-        current_id = self.index.ntotal
-
-        for file in files:
+        ingestor = Ingestor(use_state=False)
+        documents = list(ingestor.run(target_dir, recursive=recursive))
+        task = progress.add_task("[cyan]Indexing chunks for semantic search...", total=len(documents)) if progress else None
+        indexable_documents = []
+        for document in documents:
             if progress and task is not None:
                 progress.advance(task)
-            
-            # Explicitly ignore git internals and hidden files
-            if ".git" in file.parts or file.name.startswith("."):
+            if document.extension in excluded:
                 continue
-            if file.suffix.lower() in excluded:
-                continue
-                
-            # We reuse the LLM extraction pipeline to ensure search and 
-            # categorization see the exact same content representation.
-            raw_text = extract_text(file)
-            if not raw_text:
-                continue
+            indexable_documents.append(document)
+        return self._add_documents_to_index(indexable_documents)
 
-            # Clean text to remove OCR/Formatting artifacts before embedding
-            text = clean_text_for_search(raw_text)
-                
-            # Embeddings turn human language into a vector space where 
-            # 'meaning' is represented by spatial proximity.
-            embedding = self.model.encode([text])[0]
-            # Normalize for cosine similarity calculation
-            embedding = self._normalize_embedding(embedding)
-            new_embeddings.append(embedding)
-            
-            # Vector stores only save IDs; we must persist our own metadata 
-            # to map IDs back to human-readable file paths and snippets.
-            new_metadata[current_id] = {
-                "path": str(file.resolve()),
-                "name": file.name,
-                "snippet": text[:500].replace("\n", " ") + "...",
-                "hash": self._file_hash(file),
-                "embedding": embedding.tolist(),
-                "tokens": tokenize_for_search(text)
-            }
-            current_id += 1
-            
-        if new_embeddings:
-            # FAISS expects float32 arrays for IndexFlatL2 distance calculations.
-            embeddings_array = np.array(new_embeddings).astype('float32')
-            self.index.add(embeddings_array)
-            self.metadata.update(new_metadata)
-            self.save_index()
+    def build_index_from_jsonl(self, jsonl_path: Path, progress: Optional[Progress] = None) -> int:
+        if self.model is None or faiss is None or self.index is None:
+            logging.error("Cannot build index without sentence-transformers and faiss-cpu.")
+            return 0
+        documents = []
+        lines = jsonl_path.read_text(encoding="utf-8").splitlines()
+        task = progress.add_task("[cyan]Indexing JSONL chunks...", total=len(lines)) if progress else None
+        for line in lines:
+            if progress and task is not None:
+                progress.advance(task)
+            if not line.strip():
+                continue
+            documents.append(Document(**json.loads(line)))
+        return self._add_documents_to_index(documents)
+
+    def index_status(self) -> Dict[str, Any]:
+        status = inspect_index_dir(str(self.index_dir))
+        if self.index is not None:
+            status["vector_count"] = self.index.ntotal
+            status["counts_match"] = self.index.ntotal == status["metadata_count"]
+        return status
 
     def search(self, query: str, top_k: int = 3) -> List[Tuple[Dict[str, Any], float]]:
         # Fuse dense vector retrieval with lightweight lexical BM25 scoring.
@@ -264,6 +331,10 @@ class SemanticSearch:
             meta["_score"] = score
             meta["_dense_score"] = dense
             meta["_bm25_score"] = lexical
+            meta["_matched_terms"] = [
+                token for token in tokenize_for_search(query)
+                if token in (self.metadata[idx].get("tokens") or [])
+            ]
             fused.append((meta, score))
 
         results = sorted(fused, key=lambda item: item[1], reverse=True)[:top_k]

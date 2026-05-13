@@ -105,7 +105,9 @@ forge watch <source_folder> <destination_folder>
 
 # Build and query semantic search index
 forge index <folder>
+forge index --from-jsonl docs.jsonl
 forge search "tax forms from last year"
+forge search "tax forms from last year" --explain
 
 # Extract files into Document JSONL without moving originals
 forge ingest <folder> --output output.jsonl --recursive
@@ -122,7 +124,7 @@ forge clean <folder> --dupes --recursive
 
 `forge ingest` is the Phase 1 pipeline foundation. It emits one JSON object per line with stable file metadata, extracted content, chunks, a quality score, a cleaning log, and an explicit `extraction_error` when a file cannot produce usable text.
 
-The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. FAISS remains the semantic search backend for now; search now fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
+The pipeline is additive: it does not replace `organize`, `rename`, `watch`, `index`, or `search`. `forge index` now uses the ingest pipeline and indexes document chunks with metadata such as document ID, chunk ID, tags, and quality score. FAISS remains the semantic search backend for now; search fuses dense results with BM25-style lexical scores. ChromaDB is intentionally deferred until chunk-level upsert/delete behavior is needed.
 
 ## Optional AI
 

@@ -57,6 +57,51 @@ def test_index_command_uses_current_positional_cli(tmp_path, monkeypatch):
     assert result.exit_code == 0
 
 
+def test_index_command_supports_from_jsonl(tmp_path, monkeypatch):
+    runner = CliRunner()
+    jsonl_path = tmp_path / "docs.jsonl"
+    jsonl_path.write_text("{}\n")
+
+    class FakeSearch:
+        def build_index_from_jsonl(self, path, progress=None):
+            assert path == jsonl_path
+            assert progress is not None
+            return 2
+
+    monkeypatch.setattr("src.search.SemanticSearch", lambda: FakeSearch())
+    result = runner.invoke(app, ["index", "--from-jsonl", str(jsonl_path)])
+    assert result.exit_code == 0
+    assert "2" in result.output
+
+
+def test_search_command_explain_prints_score_parts(monkeypatch):
+    runner = CliRunner()
+
+    class FakeSearch:
+        def search(self, query, limit):
+            return [({
+                "name": "notes.txt",
+                "path": "/tmp/notes.txt",
+                "snippet": "budget planning",
+                "index_level": "chunk",
+                "chunk_index": 0,
+                "chunk_count": 2,
+                "_score_type": "hybrid",
+                "_score": 0.75,
+                "_dense_score": 0.5,
+                "_bm25_score": 1.0,
+                "_matched_terms": ["budget"],
+                "tags": ["budget", "planning"],
+            }, 0.75)]
+
+    monkeypatch.setattr("src.search.SemanticSearch", lambda: FakeSearch())
+    result = runner.invoke(app, ["search", "budget", "--explain"])
+    assert result.exit_code == 0
+    assert "dense:" in result.output
+    assert "bm25:" in result.output
+    assert "Chunk:" in result.output
+
+
 def test_watch_command_loads_categories_and_starts_watcher(tmp_path):
     runner = CliRunner()
     target = tmp_path / "watch"
